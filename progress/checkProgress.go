@@ -1,19 +1,16 @@
 package progress
 
 import (
-	// "net/http"
-	// "io/ioutil"
-	"github.com/PuerkitoBio/goquery"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"log"
-	"strings"
 	"strconv"
-	// "reflect"
+	"strings"
 )
 
 type WorkInProgress struct {
-    title string
-    progress int
+	title    string
+	progress int
 }
 
 func (wip *WorkInProgress) ToString() string {

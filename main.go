@@ -2,10 +2,10 @@ package main
 
 import (
 	"rhionin.com/Rhionin/SanderServer/progress"
-	"fmt"
+	"time"
 )
 
 func main() {
-	wips := progress.CheckProgress();
-	fmt.Println(wips)
+	progress.ScheduleProgressCheckJob()
+	time.Sleep(10000 * time.Minute)
 }
