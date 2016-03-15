@@ -8,15 +8,18 @@ import (
 	"strings"
 )
 
+// WorkInProgress represents each work and its progress
 type WorkInProgress struct {
-	title    string
-	progress int
+	Title    string `json:"title"`
+	Progress int    `json:"progress"`
 }
 
+// ToString prints to string
 func (wip *WorkInProgress) ToString() string {
-	return fmt.Sprintf("%s (%d%%)", wip.title, wip.progress)
+	return fmt.Sprintf("%s (%d%%)", wip.Title, wip.Progress)
 }
 
+// CheckProgress gets latest works in progress from brandonsanderson.com
 func CheckProgress() []WorkInProgress {
 	doc, err := goquery.NewDocument("http://brandonsanderson.com")
 	if err != nil {
@@ -46,7 +49,7 @@ func CheckProgress() []WorkInProgress {
 		if err != nil {
 			log.Fatal("Error parsing progress for ", title)
 		} else {
-			wips[i] = WorkInProgress{title: title, progress: progress}
+			wips[i] = WorkInProgress{Title: title, Progress: progress}
 		}
 	}
 
