@@ -10,6 +10,7 @@ import (
 type Config struct {
 	GoogleAPIKey          string `yaml:"googleAPIKey"`
 	ProgressCheckInterval string `yaml:"progressCheckInterval"`
+	Port                  string `yaml:"port"`
 }
 
 // GetConfig returns the config object. Gofigure

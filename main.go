@@ -1,11 +1,23 @@
 package main
 
 import (
-	"rhionin.com/Rhionin/SanderServer/progress"
-	"time"
+	"flag"
+	"fmt"
+	"rhionin.com/Rhionin/SanderServer/server"
 )
 
 func main() {
-	progress.ScheduleProgressCheckJob()
-	time.Sleep(10000 * time.Minute)
+
+	checkPgrsPtr := flag.Bool("checkPgrs", false, "Run progress check job")
+
+	flag.Parse()
+
+	config := GetConfig()
+
+	server.Start(config.Port)
+
+	if *checkPgrsPtr {
+		fmt.Println("Progress will poll: " + config.ProgressCheckInterval)
+		ScheduleProgressCheckJob()
+	}
 }
