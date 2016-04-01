@@ -1,4 +1,4 @@
-package main
+package gcm
 
 import (
 	"bytes"
@@ -6,30 +6,31 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"rhionin.com/Rhionin/SanderServer/progress"
+	cfg "rhionin.com/Rhionin/SanderServer/config"
 )
 
-type gcmMessage struct {
+// Message a GCM message
+type Message struct {
 	To   string                 `json:"to"`
 	Data map[string]interface{} `json:"data"`
 }
 
-// SendGCMUpdate pushes an update via GCM
-func SendGCMUpdate(wips []progress.WorkInProgress) {
-	config := GetConfig()
+// Send pushes an update via GCM
+func Send(message Message) {
+	config := cfg.GetConfig()
 
 	url := "https://android.googleapis.com/gcm/send"
 
-	jsonMsg := gcmMessage{
-		To: "/topics/progress",
-		Data: map[string]interface{}{
-			"worksInProgress": wips,
-		},
+	fmt.Println("Sending GCM message", message)
+	jsonStr, err := json.Marshal(message)
+	if err != nil {
+		panic(err)
 	}
-	fmt.Println(jsonMsg)
 
-	jsonStr, _ := json.Marshal(jsonMsg)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	if err != nil {
+		panic(err)
+	}
 
 	req.Header.Set("Authorization", "key="+config.GoogleAPIKey)
 	req.Header.Set("Content-Type", "application/json")
@@ -44,5 +45,5 @@ func SendGCMUpdate(wips []progress.WorkInProgress) {
 	// fmt.Println("response Status:", resp.Status)
 	// fmt.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
+	fmt.Println("GCM response Body:", string(body))
 }

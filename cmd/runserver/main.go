@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	cfg "rhionin.com/Rhionin/SanderServer/config"
+	"rhionin.com/Rhionin/SanderServer/progress"
 	"rhionin.com/Rhionin/SanderServer/server"
 )
 
@@ -12,12 +14,12 @@ func main() {
 
 	flag.Parse()
 
-	config := GetConfig()
-
-	server.Start(config.Port)
+	config := cfg.GetConfig()
 
 	if *checkPgrsPtr {
 		fmt.Println("Progress will poll: " + config.ProgressCheckInterval)
-		ScheduleProgressCheckJob()
+		progress.ScheduleProgressCheckJob()
 	}
+
+	server.Start(config.Port)
 }

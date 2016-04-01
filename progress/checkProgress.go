@@ -10,8 +10,9 @@ import (
 
 // WorkInProgress represents each work and its progress
 type WorkInProgress struct {
-	Title    string `json:"title"`
-	Progress int    `json:"progress"`
+	Title        string `json:"title"`
+	Progress     int    `json:"progress"`
+	PrevProgress int    `json:"prevProgress"`
 }
 
 // ToString prints to string
