@@ -26,6 +26,18 @@ func ScheduleProgressCheckJob() {
 
 			if !areEqual {
 				fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
+
+				// Get previous progress for existing works in progress
+				for i := 0; i < len(currentWips); i++ {
+					currentWip := &currentWips[i]
+					for j := 0; j < len(currentWips); j++ {
+						prevWip := &prevWips[j]
+						if currentWip.Title == prevWip.Title {
+							currentWip.PrevProgress = prevWip.Progress
+						}
+					}
+				}
+
 				SendGCMUpdate(currentWips, "/topics/progress")
 			} else {
 				fmt.Println("No update. Next check at", c.Entries()[0].Next)
