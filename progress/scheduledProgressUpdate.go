@@ -12,7 +12,7 @@ import (
 // ScheduleProgressCheckJob schedules a job to repeatedly check progress
 // on Brandon Sanderson's books
 func ScheduleProgressCheckJob() {
-	var prevWips []WorkInProgress
+	prevWips := CheckProgress()
 
 	config := cfg.GetConfig()
 
@@ -28,9 +28,11 @@ func ScheduleProgressCheckJob() {
 				fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
 
 				// Get previous progress for existing works in progress
-				for i := 0; i < len(currentWips); i++ {
-					currentWip := &currentWips[i]
-					for j := 0; j < len(currentWips); j++ {
+				wipsUpdate := make([]WorkInProgress, len(currentWips))
+				copy(wipsUpdate, currentWips)
+				for i := 0; i < len(wipsUpdate); i++ {
+					currentWip := &wipsUpdate[i]
+					for j := 0; j < len(prevWips); j++ {
 						prevWip := &prevWips[j]
 						if currentWip.Title == prevWip.Title {
 							currentWip.PrevProgress = prevWip.Progress
@@ -38,7 +40,7 @@ func ScheduleProgressCheckJob() {
 					}
 				}
 
-				SendGCMUpdate(currentWips, "/topics/progress")
+				SendGCMUpdate(wipsUpdate, "/topics/progress")
 			} else {
 				fmt.Println("No update. Next check at", c.Entries()[0].Next)
 			}
