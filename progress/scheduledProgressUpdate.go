@@ -34,7 +34,7 @@ func ScheduleProgressCheckJob() {
 					currentWip := &wipsUpdate[i]
 					for j := 0; j < len(prevWips); j++ {
 						prevWip := &prevWips[j]
-						if currentWip.Title == prevWip.Title {
+						if currentWip.Title == prevWip.Title && currentWip.Progress != prevWip.Progress {
 							currentWip.PrevProgress = prevWip.Progress
 						}
 					}
