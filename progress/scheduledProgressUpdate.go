@@ -3,23 +3,49 @@ package progress
 import (
 	"fmt"
 
-	"github.com/robfig/cron"
 	"reflect"
+
+	"github.com/robfig/cron"
 	cfg "rhionin.com/Rhionin/SanderServer/config"
 	"rhionin.com/Rhionin/SanderServer/gcm"
 )
 
+type (
+	// Monitor monitors progress
+	Monitor struct {
+		LiveReader Reader
+		History    ReadWriter
+	}
+
+	// Reader reads progress
+	Reader interface {
+		GetProgress() []WorkInProgress
+	}
+
+	// Writer writes progress
+	Writer interface {
+		WriteProgress(wips []WorkInProgress) error
+	}
+
+	// ReadWriter read and writes progress
+	ReadWriter interface {
+		Reader
+		Writer
+	}
+)
+
 // ScheduleProgressCheckJob schedules a job to repeatedly check progress
 // on Brandon Sanderson's books
-func ScheduleProgressCheckJob() {
-	prevWips := CheckProgress()
+func (m *Monitor) ScheduleProgressCheckJob() {
+	prevWips := m.History.GetProgress()
 
 	config := cfg.GetConfig()
 
 	c := cron.New()
 	fmt.Println(config.ProgressCheckInterval)
 	c.AddFunc(config.ProgressCheckInterval, func() {
-		currentWips := CheckProgress()
+		currentWips := CheckProgress() // m.LiveReader.GetProgress()
+		m.History.WriteProgress(currentWips)
 
 		if len(prevWips) > 0 {
 			areEqual := reflect.DeepEqual(currentWips, prevWips)

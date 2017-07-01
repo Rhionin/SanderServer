@@ -1,3 +1,4 @@
 SanderServer
 cmd/runserver/runserver
 cmd/sendTestGCMUpdate/sendTestGCMUpdate
+runserver
