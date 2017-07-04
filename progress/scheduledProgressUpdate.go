@@ -45,34 +45,35 @@ func (m *Monitor) ScheduleProgressCheckJob() {
 	fmt.Println(config.ProgressCheckInterval)
 	c.AddFunc(config.ProgressCheckInterval, func() {
 		currentWips := CheckProgress() // m.LiveReader.GetProgress()
-		m.History.WriteProgress(currentWips)
+		if len(currentWips) > 0 {
+			m.History.WriteProgress(currentWips)
 
-		if len(prevWips) > 0 {
-			areEqual := reflect.DeepEqual(currentWips, prevWips)
+			if len(prevWips) > 0 {
+				areEqual := reflect.DeepEqual(currentWips, prevWips)
 
-			if !areEqual {
-				fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
+				if !areEqual {
+					fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
 
-				// Get previous progress for existing works in progress
-				wipsUpdate := make([]WorkInProgress, len(currentWips))
-				copy(wipsUpdate, currentWips)
-				for i := 0; i < len(wipsUpdate); i++ {
-					currentWip := &wipsUpdate[i]
-					for j := 0; j < len(prevWips); j++ {
-						prevWip := &prevWips[j]
-						if currentWip.Title == prevWip.Title && currentWip.Progress != prevWip.Progress {
-							currentWip.PrevProgress = prevWip.Progress
+					// Get previous progress for existing works in progress
+					wipsUpdate := make([]WorkInProgress, len(currentWips))
+					copy(wipsUpdate, currentWips)
+					for i := 0; i < len(wipsUpdate); i++ {
+						currentWip := &wipsUpdate[i]
+						for j := 0; j < len(prevWips); j++ {
+							prevWip := &prevWips[j]
+							if currentWip.Title == prevWip.Title && currentWip.Progress != prevWip.Progress {
+								currentWip.PrevProgress = prevWip.Progress
+							}
 						}
 					}
-				}
 
-				SendGCMUpdate(wipsUpdate, "/topics/progress")
-			} else {
-				fmt.Println("No update. Next check at", c.Entries()[0].Next)
+					SendGCMUpdate(wipsUpdate, "/topics/progress")
+				} else {
+					fmt.Println("No update. Next check at", c.Entries()[0].Next)
+				}
 			}
 		}
 		prevWips = currentWips
-
 	})
 	fmt.Println("First check at", c.Entries()[0].Next)
 	c.Start()
