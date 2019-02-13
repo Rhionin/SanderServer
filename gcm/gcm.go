@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	cfg "rhionin.com/Rhionin/SanderServer/config"
+	cfg "github.com/Rhionin/SanderServer/config"
 )
 
 // Message a GCM message

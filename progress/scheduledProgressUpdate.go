@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	"github.com/robfig/cron"
-	cfg "rhionin.com/Rhionin/SanderServer/config"
-	"rhionin.com/Rhionin/SanderServer/gcm"
+	cfg "github.com/Rhionin/SanderServer/config"
+	"github.com/Rhionin/SanderServer/gcm"
 )
 
 type (

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"rhionin.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/progress"
 )
 
 func main() {
