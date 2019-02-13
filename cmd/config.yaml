@@ -1,0 +1,3 @@
+progressCheckInterval: "@every 5m"
+logFile: "./SanderServer.log"
+port: ":8000"
