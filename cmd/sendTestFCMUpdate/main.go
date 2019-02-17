@@ -34,7 +34,7 @@ func main() {
 		{Title: "Book 4", Progress: 100, PrevProgress: 80},
 	}
 
-	response, err := progress.SendFCMUpdate(ctx, firebaseClient, wips, "/topics/devprogress")
+	response, err := progress.SendFCMUpdate(ctx, firebaseClient, wips, "devprogress")
 	if err != nil {
 		fmt.Printf("Error sending FCM update: %s\n", err)
 	}
