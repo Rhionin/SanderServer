@@ -2,7 +2,6 @@ package config
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	yaml "gopkg.in/yaml.v2"
@@ -16,9 +15,9 @@ type Config struct {
 }
 
 // GetConfig returns the config object. Gofigure
-func GetConfig() Config {
+func GetConfig(filePath string) Config {
 
-	filename, _ := filepath.Abs(os.Getenv("CONFIG"))
+	filename, _ := filepath.Abs(filePath)
 	yamlFile, err := ioutil.ReadFile(filename)
 
 	if err != nil {

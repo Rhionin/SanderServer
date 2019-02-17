@@ -10,9 +10,10 @@ import (
 	"github.com/Rhionin/SanderServer/progress"
 )
 
-const (
+var (
 	historyFile                   = getenvOrDefault("HISTORY_FILE", "./history.txt")
 	firebaseCredentialsConfigPath = getenvRequired("FIREBASE_CONFIG")
+	configPath                    = getenvRequired("CONFIG")
 )
 
 func main() {
@@ -23,13 +24,19 @@ func main() {
 		panic("Failed to initialize Firebase messaging client")
 	}
 
+	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
+		if _, err := os.Create(historyFile); err != nil {
+			panic(err)
+		}
+	}
+
 	history := progress.JSONFileReadWriter{
 		FilePath: historyFile,
 	}
 	monitor := progress.Monitor{
-		LiveReader: progress.GetProgress,
-		History:    history,
-		Config:     config.GetConfig(),
+		LiveReader: progress.WebProgressChecker{},
+		History:    &history,
+		Config:     config.GetConfig(configPath),
 	}
 
 	monitor.ScheduleProgressCheckJob(ctx, firebaseClient)
@@ -43,7 +50,7 @@ func getenvOrDefault(key, fallback string) string {
 	return value
 }
 
-func getenvRequired(key) string {
+func getenvRequired(key string) string {
 	value := os.Getenv(key)
 	if len(value) == 0 {
 		panic("Must provide " + key)

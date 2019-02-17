@@ -9,6 +9,7 @@ import (
 
 	"firebase.google.com/go/messaging"
 	"github.com/Rhionin/SanderServer/config"
+	"github.com/robfig/cron"
 )
 
 type (
@@ -44,7 +45,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 	c := cron.New()
 	fmt.Println(m.Config.ProgressCheckInterval)
 	c.AddFunc(m.Config.ProgressCheckInterval, func() {
-		currentWips := CheckProgress() // m.LiveReader.GetProgress()
+		currentWips := m.LiveReader.GetProgress()
 		if len(currentWips) > 0 {
 			m.History.WriteProgress(currentWips)
 
