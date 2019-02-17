@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"firebase.google.com/go/messaging"
+	"github.com/Rhionin/SanderServer/config"
 )
 
 type (
@@ -15,6 +16,7 @@ type (
 	Monitor struct {
 		LiveReader Reader
 		History    ReadWriter
+		Config     config.Config
 	}
 
 	// Reader reads progress
@@ -39,11 +41,9 @@ type (
 func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *messaging.Client) {
 	prevWips := m.History.GetProgress()
 
-	config := cfg.GetConfig()
-
 	c := cron.New()
-	fmt.Println(config.ProgressCheckInterval)
-	c.AddFunc(config.ProgressCheckInterval, func() {
+	fmt.Println(m.Config.ProgressCheckInterval)
+	c.AddFunc(m.Config.ProgressCheckInterval, func() {
 		currentWips := CheckProgress() // m.LiveReader.GetProgress()
 		if len(currentWips) > 0 {
 			m.History.WriteProgress(currentWips)
@@ -67,7 +67,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 						}
 					}
 
-					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, config.ProgressTopic); err != nil {
+					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic); err != nil {
 						fmt.Println(err)
 					}
 				} else {
