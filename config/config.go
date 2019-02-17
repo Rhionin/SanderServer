@@ -1,15 +1,15 @@
 package config
 
 import (
-	"os"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Config is the config.
 type Config struct {
-	GoogleAPIKey          string `yaml:"googleAPIKey"`
 	ProgressCheckInterval string `yaml:"progressCheckInterval"`
 	Port                  string `yaml:"port"`
 }

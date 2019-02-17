@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"firebase.google.com/go/messaging"
 )
@@ -85,11 +86,20 @@ func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips [
 		return "", err
 	}
 
+	oneHour := time.Duration(1) * time.Hour
 	message := &messaging.Message{
 		Topic: topic,
+		Data: map[string]string{
+			"worksInProgress": string(wipsStr),
+		},
 		Android: &messaging.AndroidConfig{
-			Data: map[string]string{
-				"worksInProgress": string(wipsStr),
+			TTL:      &oneHour,
+			Priority: "normal",
+			Notification: &messaging.AndroidNotification{
+				Title: "Stormwatch",
+				Body:  "Brandon Sanderson posted a progress update",
+				Icon:  "ic_stat_ic_notification",
+				Color: "#4195f4",
 			},
 		},
 	}
