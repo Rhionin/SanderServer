@@ -3,6 +3,8 @@ package progress
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"time"
 
 	"firebase.google.com/go/messaging"
@@ -32,51 +34,53 @@ type (
 	}
 )
 
-// // ScheduleProgressCheckJob schedules a job to repeatedly check progress
-// // on Brandon Sanderson's books
-// func (m *Monitor) ScheduleProgressCheckJob() {
-// 	prevWips := m.History.GetProgress()
+// ScheduleProgressCheckJob schedules a job to repeatedly check progress
+// on Brandon Sanderson's books
+func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *messaging.Client) {
+	prevWips := m.History.GetProgress()
 
-// 	config := cfg.GetConfig()
+	config := cfg.GetConfig()
 
-// 	c := cron.New()
-// 	fmt.Println(config.ProgressCheckInterval)
-// 	c.AddFunc(config.ProgressCheckInterval, func() {
-// 		currentWips := CheckProgress() // m.LiveReader.GetProgress()
-// 		if len(currentWips) > 0 {
-// 			m.History.WriteProgress(currentWips)
+	c := cron.New()
+	fmt.Println(config.ProgressCheckInterval)
+	c.AddFunc(config.ProgressCheckInterval, func() {
+		currentWips := CheckProgress() // m.LiveReader.GetProgress()
+		if len(currentWips) > 0 {
+			m.History.WriteProgress(currentWips)
 
-// 			if len(prevWips) > 0 {
-// 				areEqual := reflect.DeepEqual(currentWips, prevWips)
+			if len(prevWips) > 0 {
+				areEqual := reflect.DeepEqual(currentWips, prevWips)
 
-// 				if !areEqual {
-// 					fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
+				if !areEqual {
+					fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
 
-// 					// Get previous progress for existing works in progress
-// 					wipsUpdate := make([]WorkInProgress, len(currentWips))
-// 					copy(wipsUpdate, currentWips)
-// 					for i := 0; i < len(wipsUpdate); i++ {
-// 						currentWip := &wipsUpdate[i]
-// 						for j := 0; j < len(prevWips); j++ {
-// 							prevWip := &prevWips[j]
-// 							if currentWip.Title == prevWip.Title && currentWip.Progress != prevWip.Progress {
-// 								currentWip.PrevProgress = prevWip.Progress
-// 							}
-// 						}
-// 					}
+					// Get previous progress for existing works in progress
+					wipsUpdate := make([]WorkInProgress, len(currentWips))
+					copy(wipsUpdate, currentWips)
+					for i := 0; i < len(wipsUpdate); i++ {
+						currentWip := &wipsUpdate[i]
+						for j := 0; j < len(prevWips); j++ {
+							prevWip := &prevWips[j]
+							if currentWip.Title == prevWip.Title && currentWip.Progress != prevWip.Progress {
+								currentWip.PrevProgress = prevWip.Progress
+							}
+						}
+					}
 
-// 					SendFCMUpdate(wipsUpdate, "/topics/progress")
-// 				} else {
-// 					fmt.Println("No update. Next check at", c.Entries()[0].Next)
-// 				}
-// 			}
-// 		}
-// 		prevWips = currentWips
-// 	})
-// 	fmt.Println("First check at", c.Entries()[0].Next)
-// 	c.Start()
+					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, config.ProgressTopic); err != nil {
+						fmt.Println(err)
+					}
+				} else {
+					fmt.Println("No update. Next check at", c.Entries()[0].Next)
+				}
+			}
+		}
+		prevWips = currentWips
+	})
+	fmt.Println("First check at", c.Entries()[0].Next)
+	c.Start()
 
-// }
+}
 
 // SendFCMUpdate pushes an update via FCM
 func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {

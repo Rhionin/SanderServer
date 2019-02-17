@@ -12,6 +12,7 @@ import (
 type Config struct {
 	ProgressCheckInterval string `yaml:"progressCheckInterval"`
 	Port                  string `yaml:"port"`
+	ProgressTopic         string `yaml:"progresstopic"`
 }
 
 // GetConfig returns the config object. Gofigure
