@@ -2,6 +2,6 @@ SanderServer
 cmd/runserver/runserver
 cmd/sendTestGCMUpdate/sendTestGCMUpdate
 runserver
-brandon-sanderson*firebase*.json
+stormwatch*firebase*.json
 history.txt
 
