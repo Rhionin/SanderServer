@@ -1,13 +1,15 @@
 package progress
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-
 	"reflect"
+	"time"
 
+	"firebase.google.com/go/messaging"
+	"github.com/Rhionin/SanderServer/config"
 	"github.com/robfig/cron"
-	cfg "github.com/Rhionin/SanderServer/config"
-	"github.com/Rhionin/SanderServer/gcm"
 )
 
 type (
@@ -15,6 +17,7 @@ type (
 	Monitor struct {
 		LiveReader Reader
 		History    ReadWriter
+		Config     config.Config
 	}
 
 	// Reader reads progress
@@ -36,15 +39,13 @@ type (
 
 // ScheduleProgressCheckJob schedules a job to repeatedly check progress
 // on Brandon Sanderson's books
-func (m *Monitor) ScheduleProgressCheckJob() {
+func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *messaging.Client) {
 	prevWips := m.History.GetProgress()
 
-	config := cfg.GetConfig()
-
 	c := cron.New()
-	fmt.Println(config.ProgressCheckInterval)
-	c.AddFunc(config.ProgressCheckInterval, func() {
-		currentWips := CheckProgress() // m.LiveReader.GetProgress()
+	fmt.Println(m.Config.ProgressCheckInterval)
+	c.AddFunc(m.Config.ProgressCheckInterval, func() {
+		currentWips := m.LiveReader.GetProgress()
 		if len(currentWips) > 0 {
 			m.History.WriteProgress(currentWips)
 
@@ -67,7 +68,9 @@ func (m *Monitor) ScheduleProgressCheckJob() {
 						}
 					}
 
-					SendGCMUpdate(wipsUpdate, "/topics/progress")
+					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic); err != nil {
+						fmt.Println(err)
+					}
 				} else {
 					fmt.Println("No update. Next check at", c.Entries()[0].Next)
 				}
@@ -80,15 +83,31 @@ func (m *Monitor) ScheduleProgressCheckJob() {
 
 }
 
-// SendGCMUpdate pushes an update via GCM
-func SendGCMUpdate(wips []WorkInProgress, recipient string) {
+// SendFCMUpdate pushes an update via FCM
+func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {
 
-	message := gcm.Message{
-		To: recipient,
-		Data: map[string]interface{}{
-			"worksInProgress": wips,
+	wipsStr, err := json.Marshal(wips)
+	if err != nil {
+		return "", err
+	}
+
+	oneHour := time.Duration(1) * time.Hour
+	message := &messaging.Message{
+		Topic: topic,
+		Data: map[string]string{
+			"worksInProgress": string(wipsStr),
+		},
+		Android: &messaging.AndroidConfig{
+			TTL:      &oneHour,
+			Priority: "normal",
+			Notification: &messaging.AndroidNotification{
+				Title: "Stormwatch",
+				Body:  "Brandon Sanderson posted a progress update",
+				Icon:  "ic_stat_ic_notification",
+				Color: "#4195f4",
+			},
 		},
 	}
 
-	gcm.Send(message)
+	return firebaseClient.Send(ctx, message)
 }

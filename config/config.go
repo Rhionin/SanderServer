@@ -1,23 +1,23 @@
 package config
 
 import (
-	"os"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Config is the config.
 type Config struct {
-	GoogleAPIKey          string `yaml:"googleAPIKey"`
 	ProgressCheckInterval string `yaml:"progressCheckInterval"`
 	Port                  string `yaml:"port"`
+	ProgressTopic         string `yaml:"progresstopic"`
 }
 
 // GetConfig returns the config object. Gofigure
-func GetConfig() Config {
+func GetConfig(filePath string) Config {
 
-	filename, _ := filepath.Abs(os.Getenv("CONFIG"))
+	filename, _ := filepath.Abs(filePath)
 	yamlFile, err := ioutil.ReadFile(filename)
 
 	if err != nil {
