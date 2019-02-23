@@ -8,11 +8,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type WebProgressChecker struct{}
+type WebProgressChecker struct {
+	URL string
+}
 
 // GetProgress gets latest works in progress from brandonsanderson.com
-func (WebProgressChecker) GetProgress() []WorkInProgress {
-	doc, err := goquery.NewDocument("http://brandonsanderson.com")
+func (wpc WebProgressChecker) GetProgress() []WorkInProgress {
+	doc, err := goquery.NewDocument(wpc.URL)
 	if err != nil {
 		log.Fatal("error!", err)
 	}
