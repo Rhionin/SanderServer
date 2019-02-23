@@ -1,2 +1,2 @@
 #!/bin/bash
-env GOOS=linux GOARM=7 go build cmd/server/*.go
+env GOOS=linux GOARCH=arm GOARM=5 go build cmd/server/*.go
