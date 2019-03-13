@@ -103,8 +103,6 @@ func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips [
 			Notification: &messaging.AndroidNotification{
 				Title: "Stormwatch",
 				Body:  "Brandon Sanderson posted a progress update",
-				Icon:  "ic_stat_ic_notification",
-				Color: "#4195f4",
 			},
 		},
 	}
