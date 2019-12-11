@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/Rhionin/SanderServer/config"
@@ -26,8 +27,15 @@ func main() {
 		panic("Failed to initialize Firebase messaging client")
 	}
 
+	historyFile, err := filepath.Abs(historyFile)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Writing history to ", historyFile)
+
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
-		if _, err := os.Create(historyFile); err != nil {
+		_, err := os.Create(historyFile)
+		if err != nil {
 			panic(err)
 		}
 	}
