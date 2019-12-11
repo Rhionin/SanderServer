@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Writing history to ", historyFile)
+	fmt.Println("Writing history to", historyFile)
 
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
 		_, err := os.Create(historyFile)
