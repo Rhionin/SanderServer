@@ -2,12 +2,16 @@ package progress
 
 import (
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
+var entryRegex = regexp.MustCompile("^(.*)+ ([\\d]+)%$")
+
+// WebProgressChecker checks progress from an HTML website
 type WebProgressChecker struct {
 	URL string
 }
@@ -19,28 +23,26 @@ func (wpc WebProgressChecker) GetProgress() []WorkInProgress {
 		log.Fatal("error!", err)
 	}
 
-	progressDiv := doc.Find("#pagewrap .progress-titles").First()
-	titleSelectors := progressDiv.Find(".book-title")
-	progressSelectors := progressDiv.Find(".progress")
+	progressDiv := doc.Find(".wpb_wrapper .vc_progress_bar").First()
+	progressEntrySelectors := progressDiv.Find(".vc_label")
 
-	if titleSelectors.Length() != progressSelectors.Length() {
-		log.Fatal("Mismatched book progress count!", progressDiv.Text())
-	}
-
-	titles := titleSelectors.Map(func(i int, s *goquery.Selection) string {
-		return s.Text()
-	})
-	progresses := progressSelectors.Map(func(i int, s *goquery.Selection) string {
+	progressEntries := progressEntrySelectors.Map(func(i int, s *goquery.Selection) string {
 		return s.Text()
 	})
 
-	wips := make([]WorkInProgress, len(titles))
-	for i := range titles {
-		title := strings.TrimSpace(titles[i])
-		progress, err := strconv.Atoi(strings.TrimSpace(strings.Trim(strings.TrimSpace(progresses[i]), "%")))
+	wips := make([]WorkInProgress, len(progressEntries))
+	for i := range progressEntries {
+		entry := strings.TrimSpace(progressEntries[i])
+		submatchResult := entryRegex.FindStringSubmatch(entry)
+		if len(submatchResult) != 3 {
+			log.Fatalf("Could not parse title and progress from progress entry: \"%s\"", entry)
+		}
+
+		title := strings.TrimSpace(submatchResult[1])
+		progress, err := strconv.Atoi(strings.TrimSpace(submatchResult[2]))
 
 		if err != nil {
-			log.Fatal("Error parsing progress for ", title)
+			log.Fatal("Error parsing progress for ", entry)
 		} else {
 			wips[i] = WorkInProgress{Title: title, Progress: progress}
 		}
