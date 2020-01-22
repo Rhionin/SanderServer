@@ -101,8 +101,9 @@ func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips [
 			TTL:      &oneHour,
 			Priority: "normal",
 			Notification: &messaging.AndroidNotification{
-				Title: "Stormwatch",
-				Body:  "Brandon Sanderson posted a progress update",
+				Title:       "Stormwatch",
+				Body:        "Brandon Sanderson posted a progress update",
+				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
 			},
 		},
 	}
