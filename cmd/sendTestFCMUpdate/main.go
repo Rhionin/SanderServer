@@ -34,10 +34,15 @@ func main() {
 		{Title: "Book 4", Progress: 100, PrevProgress: 80},
 	}
 
-	response, err := progress.SendFCMUpdate(ctx, firebaseClient, wips, "devprogress")
+	response, err := progress.SendFCMUpdate(ctx, firebaseClient, wips, "devprogress", false)
 	if err != nil {
-		fmt.Printf("Error sending FCM update: %s\n", err)
+		fmt.Printf("Error sending legacy FCM update: %s\n", err)
 	}
+	fmt.Println(response)
 
+	response, err = progress.SendFCMUpdate(ctx, firebaseClient, wips, "devprogress", true)
+	if err != nil {
+		fmt.Printf("Error sending flutter FCM update: %s\n", err)
+	}
 	fmt.Println(response)
 }
