@@ -74,6 +74,11 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic, true); err != nil {
 						fmt.Println(err)
 					}
+					if m.Config.SlackWebhookURL != "" {
+						if err := SendSlackUpdate(m.Config.SlackWebhookURL, wipsUpdate); err != nil {
+							fmt.Println(err)
+						}
+					}
 				} else {
 					fmt.Println("No update. Next check at", c.Entries()[0].Next)
 				}

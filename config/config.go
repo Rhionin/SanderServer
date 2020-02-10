@@ -12,6 +12,7 @@ type Config struct {
 	ProgressCheckInterval string `yaml:"progressCheckInterval"`
 	Port                  string `yaml:"port"`
 	ProgressTopic         string `yaml:"progresstopic"`
+	SlackWebhookURL       string `yaml:"slackWebhookURL"`
 }
 
 // GetConfig returns the config object. Gofigure
