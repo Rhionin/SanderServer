@@ -42,6 +42,10 @@ type (
 func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *messaging.Client) {
 	prevWips := m.History.GetProgress()
 
+	if m.Config.SlackWebhookURL != "" {
+		fmt.Println("Slack notifications enabled")
+	}
+
 	c := cron.New()
 	fmt.Println(m.Config.ProgressCheckInterval)
 	c.AddFunc(m.Config.ProgressCheckInterval, func() {
