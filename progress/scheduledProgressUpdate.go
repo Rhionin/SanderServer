@@ -116,6 +116,7 @@ func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips [
 				Title: "Stormwatch",
 				Body:  "Brandon Sanderson posted a progress update",
 			},
+			CollapseKey: "progress_update",
 		},
 	}
 	if forFlutter {
