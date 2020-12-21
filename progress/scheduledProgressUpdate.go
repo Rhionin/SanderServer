@@ -72,10 +72,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 						}
 					}
 
-					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic, false); err != nil {
-						fmt.Println(err)
-					}
-					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic, true); err != nil {
+					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic); err != nil {
 						fmt.Println(err)
 					}
 					if m.Config.SlackWebhookURL != "" {
@@ -96,7 +93,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 }
 
 // SendFCMUpdate pushes an update via FCM
-func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string, forFlutter bool) (string, error) {
+func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {
 
 	wipsStr, err := json.Marshal(wips)
 	if err != nil {
@@ -113,15 +110,12 @@ func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips [
 			TTL:      &oneHour,
 			Priority: "normal",
 			Notification: &messaging.AndroidNotification{
-				Title: "Stormwatch",
-				Body:  "Brandon Sanderson posted a progress update",
+				Title:       "Stormwatch",
+				Body:        "Brandon Sanderson posted a progress update",
+				ClickAction: "FLUTTER_NOTIFICATION_CLICK",
 			},
 			CollapseKey: "progress_update",
 		},
-	}
-	if forFlutter {
-		message.Topic = "flutter_" + message.Topic
-		message.Android.Notification.ClickAction = "FLUTTER_NOTIFICATION_CLICK"
 	}
 
 	return firebaseClient.Send(ctx, message)
