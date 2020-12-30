@@ -95,6 +95,8 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 // SendFCMUpdate pushes an update via FCM
 func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {
 
+	fmt.Println("Sending FCM message to topic "+topic, wips);
+
 	wipsStr, err := json.Marshal(wips)
 	if err != nil {
 		return "", err
