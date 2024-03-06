@@ -18,9 +18,9 @@ import (
 	"context"
 	"errors"
 
+	pb "cloud.google.com/go/firestore/apiv1/firestorepb"
+	"cloud.google.com/go/internal/trace"
 	gax "github.com/googleapis/gax-go/v2"
-	pb "google.golang.org/genproto/googleapis/firestore/v1"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -34,6 +34,7 @@ type Transaction struct {
 	maxAttempts    int
 	readOnly       bool
 	readAfterWrite bool
+	readSettings   *readSettings
 }
 
 // A TransactionOption is an option passed to Client.Transaction.
@@ -89,15 +90,19 @@ type transactionInProgressKey struct{}
 //
 // Since f may be called more than once, f should usually be idempotent – that is, it
 // should have the same result when called multiple times.
-func (c *Client) RunTransaction(ctx context.Context, f func(context.Context, *Transaction) error, opts ...TransactionOption) error {
+func (c *Client) RunTransaction(ctx context.Context, f func(context.Context, *Transaction) error, opts ...TransactionOption) (err error) {
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/firestore.Client.RunTransaction")
+	defer func() { trace.EndSpan(ctx, err) }()
+
 	if ctx.Value(transactionInProgressKey{}) != nil {
 		return errNestedTransaction
 	}
 	db := c.path()
 	t := &Transaction{
-		c:           c,
-		ctx:         withResourceHeader(ctx, db),
-		maxAttempts: DefaultTransactionMaxAttempts,
+		c:            c,
+		ctx:          withResourceHeader(ctx, db),
+		maxAttempts:  DefaultTransactionMaxAttempts,
+		readSettings: &readSettings{},
 	}
 	for _, opt := range opts {
 		opt.config(t)
@@ -112,13 +117,14 @@ func (c *Client) RunTransaction(ctx context.Context, f func(context.Context, *Tr
 	// TODO(jba): use other than the standard backoff parameters?
 	// TODO(jba): get backoff time from gRPC trailer metadata? See
 	// extractRetryDelay in https://code.googlesource.com/gocloud/+/master/spanner/retry.go.
-	var err error
 	for i := 0; i < t.maxAttempts; i++ {
+		t.ctx = trace.StartSpan(t.ctx, "cloud.google.com/go/firestore.Client.BeginTransaction")
 		var res *pb.BeginTransactionResponse
 		res, err = t.c.c.BeginTransaction(t.ctx, &pb.BeginTransactionRequest{
 			Database: db,
 			Options:  txOpts,
 		})
+		trace.EndSpan(t.ctx, err)
 		if err != nil {
 			return err
 		}
@@ -134,14 +140,17 @@ func (c *Client) RunTransaction(ctx context.Context, f func(context.Context, *Tr
 			// Prefer f's returned error to rollback error.
 			return err
 		}
+		t.ctx = trace.StartSpan(t.ctx, "cloud.google.com/go/firestore.Client.Commit")
 		_, err = t.c.c.Commit(t.ctx, &pb.CommitRequest{
 			Database:    t.c.path(),
 			Writes:      t.writes,
 			Transaction: t.id,
 		})
+		trace.EndSpan(t.ctx, err)
+
 		// If a read-write transaction returns Aborted, retry.
 		// On success or other failures, return here.
-		if t.readOnly || grpc.Code(err) != codes.Aborted {
+		if t.readOnly || status.Code(err) != codes.Aborted {
 			// According to the Firestore team, we should not roll back here
 			// if err != nil. But spanner does.
 			// See https://code.googlesource.com/gocloud/+/master/spanner/transaction.go#740.
@@ -188,7 +197,10 @@ func (t *Transaction) rollback() {
 }
 
 // Get gets the document in the context of the transaction. The transaction holds a
-// pessimistic lock on the returned document.
+// pessimistic lock on the returned document. If the document does not exist, Get
+// returns a NotFound error, which can be checked with
+//
+//	status.Code(err) == codes.NotFound
 func (t *Transaction) Get(dr *DocumentRef) (*DocumentSnapshot, error) {
 	docsnaps, err := t.GetAll([]*DocumentRef{dr})
 	if err != nil {
@@ -210,7 +222,7 @@ func (t *Transaction) GetAll(drs []*DocumentRef) ([]*DocumentSnapshot, error) {
 		t.readAfterWrite = true
 		return nil, errReadAfterWrite
 	}
-	return t.c.getAll(t.ctx, drs, t.id)
+	return t.c.getAll(t.ctx, drs, t.id, t.readSettings)
 }
 
 // A Queryer is a Query or a CollectionRef. CollectionRefs act as queries whose
@@ -226,8 +238,9 @@ func (t *Transaction) Documents(q Queryer) *DocumentIterator {
 		t.readAfterWrite = true
 		return &DocumentIterator{err: errReadAfterWrite}
 	}
+	query := q.query()
 	return &DocumentIterator{
-		iter: newQueryDocumentIterator(t.ctx, q.query(), t.id),
+		iter: newQueryDocumentIterator(t.ctx, query, t.id, t.readSettings), q: query,
 	}
 }
 
@@ -239,7 +252,7 @@ func (t *Transaction) DocumentRefs(cr *CollectionRef) *DocumentRefIterator {
 		t.readAfterWrite = true
 		return &DocumentRefIterator{err: errReadAfterWrite}
 	}
-	return newDocumentRefIterator(t.ctx, cr, t.id)
+	return newDocumentRefIterator(t.ctx, cr, t.id, t.readSettings)
 }
 
 // Create adds a Create operation to the Transaction.
@@ -275,4 +288,13 @@ func (t *Transaction) addWrites(ws []*pb.Write, err error) error {
 	}
 	t.writes = append(t.writes, ws...)
 	return nil
+}
+
+// WithReadOptions specifies constraints for accessing documents from the database,
+// e.g. at what time snapshot to read the documents.
+func (t *Transaction) WithReadOptions(opts ...ReadOption) *Transaction {
+	for _, ro := range opts {
+		ro.apply(t.readSettings)
+	}
+	return t
 }

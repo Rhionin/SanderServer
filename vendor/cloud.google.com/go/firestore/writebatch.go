@@ -18,13 +18,18 @@ import (
 	"context"
 	"errors"
 
-	pb "google.golang.org/genproto/googleapis/firestore/v1"
+	pb "cloud.google.com/go/firestore/apiv1/firestorepb"
+	"cloud.google.com/go/internal/trace"
 )
 
 // A WriteBatch holds multiple database updates. Build a batch with the Create, Set,
 // Update and Delete methods, then run it with the Commit method. Errors in Create,
 // Set, Update or Delete are recorded instead of being returned immediately. The
 // first such error is returned by Commit.
+//
+// Deprecated: The WriteBatch API has been replaced with the transaction and
+// the bulk writer API. For atomic transaction operations, use `Transaction`.
+// For bulk read and write operations, use `BulkWriter`.
 type WriteBatch struct {
 	c      *Client
 	err    error
@@ -70,7 +75,10 @@ func (b *WriteBatch) Update(dr *DocumentRef, data []Update, opts ...Precondition
 // Commit applies all the writes in the batch to the database atomically. Commit
 // returns an error if there are no writes in the batch, if any errors occurred in
 // constructing the writes, or if the Commmit operation fails.
-func (b *WriteBatch) Commit(ctx context.Context) ([]*WriteResult, error) {
+func (b *WriteBatch) Commit(ctx context.Context) (_ []*WriteResult, err error) {
+	ctx = trace.StartSpan(ctx, "cloud.google.com/go/firestore.WriteBatch.Commit")
+	defer func() { trace.EndSpan(ctx, err) }()
+
 	if b.err != nil {
 		return nil, b.err
 	}

@@ -17,9 +17,9 @@ package internal // import "firebase.google.com/go/internal"
 
 import (
 	"fmt"
+	"time"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 )
 
@@ -33,27 +33,19 @@ var FirebaseScopes = []string{
 	"https://www.googleapis.com/auth/userinfo.email",
 }
 
+// SystemClock is a clock that returns local time of the system.
+var SystemClock = &systemClock{}
+
 // AuthConfig represents the configuration of Firebase Auth service.
 type AuthConfig struct {
 	Opts             []option.ClientOption
-	Creds            *google.DefaultCredentials
 	ProjectID        string
 	ServiceAccountID string
 	Version          string
 }
 
 // HashConfig represents a hash algorithm configuration used to generate password hashes.
-type HashConfig struct {
-	HashAlgorithm    string
-	MemoryCost       int64
-	Rounds           int64
-	SaltSeparator    string
-	SignerKey        string
-	BlockSize        int64
-	DerivedKeyLength int64
-	Parallelization  int64
-	ForceSendFields  []string
-}
+type HashConfig map[string]interface{}
 
 // InstanceIDConfig represents the configuration of Firebase Instance ID service.
 type InstanceIDConfig struct {
@@ -119,4 +111,27 @@ type MockTokenSource struct {
 // Token returns the test token associated with the TokenSource.
 func (ts *MockTokenSource) Token() (*oauth2.Token, error) {
 	return &oauth2.Token{AccessToken: ts.AccessToken}, nil
+}
+
+// Clock is used to query the current local time.
+type Clock interface {
+	Now() time.Time
+}
+
+// systemClock returns the current system time.
+type systemClock struct{}
+
+// Now returns the current system time by calling time.Now().
+func (s *systemClock) Now() time.Time {
+	return time.Now()
+}
+
+// MockClock can be used to mock current time during tests.
+type MockClock struct {
+	Timestamp time.Time
+}
+
+// Now returns the timestamp set in the MockClock.
+func (m *MockClock) Now() time.Time {
+	return m.Timestamp
 }

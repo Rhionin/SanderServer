@@ -41,13 +41,14 @@ type jwtHeader struct {
 }
 
 type customToken struct {
-	Iss    string                 `json:"iss"`
-	Aud    string                 `json:"aud"`
-	Exp    int64                  `json:"exp"`
-	Iat    int64                  `json:"iat"`
-	Sub    string                 `json:"sub,omitempty"`
-	UID    string                 `json:"uid,omitempty"`
-	Claims map[string]interface{} `json:"claims,omitempty"`
+	Iss      string                 `json:"iss"`
+	Aud      string                 `json:"aud"`
+	Exp      int64                  `json:"exp"`
+	Iat      int64                  `json:"iat"`
+	Sub      string                 `json:"sub,omitempty"`
+	UID      string                 `json:"uid,omitempty"`
+	TenantID string                 `json:"tenant_id,omitempty"`
+	Claims   map[string]interface{} `json:"claims,omitempty"`
 }
 
 type jwtInfo struct {
@@ -96,6 +97,19 @@ type cryptoSigner interface {
 type serviceAccountSigner struct {
 	privateKey  *rsa.PrivateKey
 	clientEmail string
+}
+
+var errNotAServiceAcct = errors.New("credentials json is not a service account")
+
+func signerFromCreds(creds []byte) (cryptoSigner, error) {
+	var sa serviceAccount
+	if err := json.Unmarshal(creds, &sa); err != nil {
+		return nil, err
+	}
+	if sa.PrivateKey != "" && sa.ClientEmail != "" {
+		return newServiceAccountSigner(sa)
+	}
+	return nil, errNotAServiceAcct
 }
 
 func newServiceAccountSigner(sa serviceAccount) (*serviceAccountSigner, error) {
@@ -154,7 +168,7 @@ func newIAMSigner(ctx context.Context, config *internal.AuthConfig) (*iamSigner,
 		mutex:        &sync.Mutex{},
 		httpClient:   &internal.HTTPClient{Client: hc},
 		serviceAcct:  config.ServiceAccountID,
-		metadataHost: "http://metadata",
+		metadataHost: "http://metadata.google.internal",
 		iamHost:      "https://iam.googleapis.com",
 	}, nil
 }

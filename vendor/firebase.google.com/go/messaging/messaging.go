@@ -33,9 +33,11 @@ import (
 
 const (
 	messagingEndpoint = "https://fcm.googleapis.com/v1"
-	iidEndpoint       = "https://iid.googleapis.com"
-	iidSubscribe      = "iid/v1:batchAdd"
-	iidUnsubscribe    = "iid/v1:batchRemove"
+	batchEndpoint     = "https://fcm.googleapis.com/batch"
+
+	firebaseClientHeader   = "X-Firebase-Client"
+	apiFormatVersionHeader = "X-GOOG-API-FORMAT-VERSION"
+	apiFormatVersion       = "2"
 
 	internalError                  = "internal-error"
 	invalidAPNSCredentials         = "invalid-apns-credentials"
@@ -46,6 +48,8 @@ const (
 	serverUnavailable              = "server-unavailable"
 	tooManyTopics                  = "too-many-topics"
 	unknownError                   = "unknown-error"
+
+	rfc3339Zulu = "2006-01-02T15:04:05.000000000Z"
 )
 
 var (
@@ -59,7 +63,7 @@ var (
 		},
 		"PERMISSION_DENIED": {
 			mismatchedCredential,
-			"sender id does not match regisration token; code: " + mismatchedCredential,
+			"sender id does not match registration token; code: " + mismatchedCredential,
 		},
 		"RESOURCE_EXHAUSTED": {
 			messageRateExceeded,
@@ -85,7 +89,7 @@ var (
 		},
 		"SENDER_ID_MISMATCH": {
 			mismatchedCredential,
-			"sender id does not match regisration token; code: " + mismatchedCredential,
+			"sender id does not match registration token; code: " + mismatchedCredential,
 		},
 		"QUOTA_EXCEEDED": {
 			messageRateExceeded,
@@ -100,35 +104,7 @@ var (
 			"app instance has been unregistered; code: " + registrationTokenNotRegistered,
 		},
 	}
-
-	iidErrorCodes = map[string]struct{ Code, Msg string }{
-		"INVALID_ARGUMENT": {
-			invalidArgument,
-			"request contains an invalid argument; code: " + invalidArgument,
-		},
-		"NOT_FOUND": {
-			registrationTokenNotRegistered,
-			"request contains an invalid argument; code: " + registrationTokenNotRegistered,
-		},
-		"INTERNAL": {
-			internalError,
-			"server encountered an internal error; code: " + internalError,
-		},
-		"TOO_MANY_TOPICS": {
-			tooManyTopics,
-			"client exceeded the number of allowed topics; code: " + tooManyTopics,
-		},
-	}
 )
-
-// Client is the interface for the Firebase Cloud Messaging (FCM) service.
-type Client struct {
-	fcmEndpoint string // to enable testing against arbitrary endpoints
-	iidEndpoint string // to enable testing against arbitrary endpoints
-	client      *internal.HTTPClient
-	project     string
-	version     string
-}
 
 // Message to be sent via Firebase Cloud Messaging.
 //
@@ -143,6 +119,7 @@ type Message struct {
 	Android      *AndroidConfig    `json:"android,omitempty"`
 	Webpush      *WebpushConfig    `json:"webpush,omitempty"`
 	APNS         *APNSConfig       `json:"apns,omitempty"`
+	FCMOptions   *FCMOptions       `json:"fcm_options,omitempty"`
 	Token        string            `json:"token,omitempty"`
 	Topic        string            `json:"-"`
 	Condition    string            `json:"condition,omitempty"`
@@ -181,8 +158,9 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 
 // Notification is the basic notification template to use across all platforms.
 type Notification struct {
-	Title string `json:"title,omitempty"`
-	Body  string `json:"body,omitempty"`
+	Title    string `json:"title,omitempty"`
+	Body     string `json:"body,omitempty"`
+	ImageURL string `json:"image,omitempty"`
 }
 
 // AndroidConfig contains messaging options specific to the Android platform.
@@ -193,19 +171,14 @@ type AndroidConfig struct {
 	RestrictedPackageName string               `json:"restricted_package_name,omitempty"`
 	Data                  map[string]string    `json:"data,omitempty"` // if specified, overrides the Data field on Message type
 	Notification          *AndroidNotification `json:"notification,omitempty"`
+	FCMOptions            *AndroidFCMOptions   `json:"fcm_options,omitempty"`
 }
 
 // MarshalJSON marshals an AndroidConfig into JSON (for internal use only).
 func (a *AndroidConfig) MarshalJSON() ([]byte, error) {
 	var ttl string
 	if a.TTL != nil {
-		seconds := int64(*a.TTL / time.Second)
-		nanos := int64((*a.TTL - time.Duration(seconds)*time.Second) / time.Nanosecond)
-		if nanos > 0 {
-			ttl = fmt.Sprintf("%d.%09ds", seconds, nanos)
-		} else {
-			ttl = fmt.Sprintf("%ds", seconds)
-		}
+		ttl = durationToString(*a.TTL)
 	}
 
 	type androidInternal AndroidConfig
@@ -232,21 +205,9 @@ func (a *AndroidConfig) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if temp.TTL != "" {
-		segments := strings.Split(strings.TrimSuffix(temp.TTL, "s"), ".")
-		if len(segments) != 1 && len(segments) != 2 {
-			return fmt.Errorf("incorrect number of segments in ttl: %q", temp.TTL)
-		}
-		seconds, err := strconv.ParseInt(segments[0], 10, 64)
+		ttl, err := stringToDuration(temp.TTL)
 		if err != nil {
 			return err
-		}
-		ttl := time.Duration(seconds) * time.Second
-		if len(segments) == 2 {
-			nanos, err := strconv.ParseInt(strings.TrimLeft(segments[1], "0"), 10, 64)
-			if err != nil {
-				return err
-			}
-			ttl += time.Duration(nanos) * time.Nanosecond
 		}
 		a.TTL = &ttl
 	}
@@ -255,18 +216,334 @@ func (a *AndroidConfig) UnmarshalJSON(b []byte) error {
 
 // AndroidNotification is a notification to send to Android devices.
 type AndroidNotification struct {
-	Title        string   `json:"title,omitempty"` // if specified, overrides the Title field of the Notification type
-	Body         string   `json:"body,omitempty"`  // if specified, overrides the Body field of the Notification type
-	Icon         string   `json:"icon,omitempty"`
-	Color        string   `json:"color,omitempty"` // notification color in #RRGGBB format
-	Sound        string   `json:"sound,omitempty"`
-	Tag          string   `json:"tag,omitempty"`
-	ClickAction  string   `json:"click_action,omitempty"`
-	BodyLocKey   string   `json:"body_loc_key,omitempty"`
-	BodyLocArgs  []string `json:"body_loc_args,omitempty"`
-	TitleLocKey  string   `json:"title_loc_key,omitempty"`
-	TitleLocArgs []string `json:"title_loc_args,omitempty"`
-	ChannelID    string   `json:"channel_id,omitempty"`
+	Title                 string                        `json:"title,omitempty"` // if specified, overrides the Title field of the Notification type
+	Body                  string                        `json:"body,omitempty"`  // if specified, overrides the Body field of the Notification type
+	Icon                  string                        `json:"icon,omitempty"`
+	Color                 string                        `json:"color,omitempty"` // notification color in #RRGGBB format
+	Sound                 string                        `json:"sound,omitempty"`
+	Tag                   string                        `json:"tag,omitempty"`
+	ClickAction           string                        `json:"click_action,omitempty"`
+	BodyLocKey            string                        `json:"body_loc_key,omitempty"`
+	BodyLocArgs           []string                      `json:"body_loc_args,omitempty"`
+	TitleLocKey           string                        `json:"title_loc_key,omitempty"`
+	TitleLocArgs          []string                      `json:"title_loc_args,omitempty"`
+	ChannelID             string                        `json:"channel_id,omitempty"`
+	ImageURL              string                        `json:"image,omitempty"`
+	Ticker                string                        `json:"ticker,omitempty"`
+	Sticky                bool                          `json:"sticky,omitempty"`
+	EventTimestamp        *time.Time                    `json:"-"`
+	LocalOnly             bool                          `json:"local_only,omitempty"`
+	Priority              AndroidNotificationPriority   `json:"-"`
+	VibrateTimingMillis   []int64                       `json:"-"`
+	DefaultVibrateTimings bool                          `json:"default_vibrate_timings,omitempty"`
+	DefaultSound          bool                          `json:"default_sound,omitempty"`
+	LightSettings         *LightSettings                `json:"light_settings,omitempty"`
+	DefaultLightSettings  bool                          `json:"default_light_settings,omitempty"`
+	Visibility            AndroidNotificationVisibility `json:"-"`
+	NotificationCount     *int                          `json:"notification_count,omitempty"`
+}
+
+// MarshalJSON marshals an AndroidNotification into JSON (for internal use only).
+func (a *AndroidNotification) MarshalJSON() ([]byte, error) {
+	var priority string
+	if a.Priority != priorityUnspecified {
+		priorities := map[AndroidNotificationPriority]string{
+			PriorityMin:     "PRIORITY_MIN",
+			PriorityLow:     "PRIORITY_LOW",
+			PriorityDefault: "PRIORITY_DEFAULT",
+			PriorityHigh:    "PRIORITY_HIGH",
+			PriorityMax:     "PRIORITY_MAX",
+		}
+		priority, _ = priorities[a.Priority]
+	}
+
+	var visibility string
+	if a.Visibility != visibilityUnspecified {
+		visibilities := map[AndroidNotificationVisibility]string{
+			VisibilityPrivate: "PRIVATE",
+			VisibilityPublic:  "PUBLIC",
+			VisibilitySecret:  "SECRET",
+		}
+		visibility, _ = visibilities[a.Visibility]
+	}
+
+	var timestamp string
+	if a.EventTimestamp != nil {
+		timestamp = a.EventTimestamp.UTC().Format(rfc3339Zulu)
+	}
+
+	var vibTimings []string
+	for _, t := range a.VibrateTimingMillis {
+		vibTimings = append(vibTimings, durationToString(time.Duration(t)*time.Millisecond))
+	}
+
+	type androidInternal AndroidNotification
+	temp := &struct {
+		EventTimestamp string   `json:"event_time,omitempty"`
+		Priority       string   `json:"notification_priority,omitempty"`
+		Visibility     string   `json:"visibility,omitempty"`
+		VibrateTimings []string `json:"vibrate_timings,omitempty"`
+		*androidInternal
+	}{
+		EventTimestamp:  timestamp,
+		Priority:        priority,
+		Visibility:      visibility,
+		VibrateTimings:  vibTimings,
+		androidInternal: (*androidInternal)(a),
+	}
+	return json.Marshal(temp)
+}
+
+// UnmarshalJSON unmarshals a JSON string into an AndroidNotification (for internal use only).
+func (a *AndroidNotification) UnmarshalJSON(b []byte) error {
+	type androidInternal AndroidNotification
+	temp := struct {
+		EventTimestamp string   `json:"event_time,omitempty"`
+		Priority       string   `json:"notification_priority,omitempty"`
+		Visibility     string   `json:"visibility,omitempty"`
+		VibrateTimings []string `json:"vibrate_timings,omitempty"`
+		*androidInternal
+	}{
+		androidInternal: (*androidInternal)(a),
+	}
+	if err := json.Unmarshal(b, &temp); err != nil {
+		return err
+	}
+
+	if temp.Priority != "" {
+		priorities := map[string]AndroidNotificationPriority{
+			"PRIORITY_MIN":     PriorityMin,
+			"PRIORITY_LOW":     PriorityLow,
+			"PRIORITY_DEFUALT": PriorityDefault,
+			"PRIORITY_HIGH":    PriorityHigh,
+			"PRIORITY_MAX":     PriorityMax,
+		}
+		if prio, ok := priorities[temp.Priority]; ok {
+			a.Priority = prio
+		} else {
+			return fmt.Errorf("unknown priority value: %q", temp.Priority)
+		}
+	}
+
+	if temp.Visibility != "" {
+		visibilities := map[string]AndroidNotificationVisibility{
+			"PRIVATE": VisibilityPrivate,
+			"PUBLIC":  VisibilityPublic,
+			"SECRET":  VisibilitySecret,
+		}
+		if vis, ok := visibilities[temp.Visibility]; ok {
+			a.Visibility = vis
+		} else {
+			return fmt.Errorf("unknown visibility value: %q", temp.Visibility)
+		}
+	}
+
+	if temp.EventTimestamp != "" {
+		ts, err := time.Parse(rfc3339Zulu, temp.EventTimestamp)
+		if err != nil {
+			return err
+		}
+
+		a.EventTimestamp = &ts
+	}
+
+	var vibTimings []int64
+	for _, t := range temp.VibrateTimings {
+		vibTime, err := stringToDuration(t)
+		if err != nil {
+			return err
+		}
+
+		millis := int64(vibTime / time.Millisecond)
+		vibTimings = append(vibTimings, millis)
+	}
+	a.VibrateTimingMillis = vibTimings
+	return nil
+}
+
+// AndroidNotificationPriority represents the priority levels of a notification.
+type AndroidNotificationPriority int
+
+const (
+	priorityUnspecified AndroidNotificationPriority = iota
+
+	// PriorityMin is the lowest notification priority. Notifications with this priority might not
+	// be shown to the user except under special circumstances, such as detailed notification logs.
+	PriorityMin
+
+	// PriorityLow is a lower notification priority. The UI may choose to show the notifications
+	// smaller, or at a different position in the list, compared with notifications with PriorityDefault.
+	PriorityLow
+
+	// PriorityDefault is the default notification priority. If the application does not prioritize
+	// its own notifications, use this value for all notifications.
+	PriorityDefault
+
+	// PriorityHigh is a higher notification priority. Use this for more important
+	// notifications or alerts. The UI may choose to show these notifications larger, or at a
+	// different position in the notification lists, compared with notifications with PriorityDefault.
+	PriorityHigh
+
+	// PriorityMax is the highest notification priority. Use this for the application's most
+	// important items that require the user's prompt attention or input.
+	PriorityMax
+)
+
+// AndroidNotificationVisibility represents the different visibility levels of a notification.
+type AndroidNotificationVisibility int
+
+const (
+	visibilityUnspecified AndroidNotificationVisibility = iota
+
+	// VisibilityPrivate shows this notification on all lockscreens, but conceal sensitive or
+	// private information on secure lockscreens.
+	VisibilityPrivate
+
+	// VisibilityPublic shows this notification in its entirety on all lockscreens.
+	VisibilityPublic
+
+	// VisibilitySecret does not reveal any part of this notification on a secure lockscreen.
+	VisibilitySecret
+)
+
+// LightSettings to control notification LED.
+type LightSettings struct {
+	Color                  string
+	LightOnDurationMillis  int64
+	LightOffDurationMillis int64
+}
+
+// MarshalJSON marshals an LightSettings into JSON (for internal use only).
+func (l *LightSettings) MarshalJSON() ([]byte, error) {
+	clr, err := newColor(l.Color)
+	if err != nil {
+		return nil, err
+	}
+
+	temp := struct {
+		Color            *color `json:"color"`
+		LightOnDuration  string `json:"light_on_duration"`
+		LightOffDuration string `json:"light_off_duration"`
+	}{
+		Color:            clr,
+		LightOnDuration:  durationToString(time.Duration(l.LightOnDurationMillis) * time.Millisecond),
+		LightOffDuration: durationToString(time.Duration(l.LightOffDurationMillis) * time.Millisecond),
+	}
+	return json.Marshal(temp)
+}
+
+// UnmarshalJSON unmarshals a JSON string into an LightSettings (for internal use only).
+func (l *LightSettings) UnmarshalJSON(b []byte) error {
+	temp := struct {
+		Color            *color `json:"color"`
+		LightOnDuration  string `json:"light_on_duration"`
+		LightOffDuration string `json:"light_off_duration"`
+	}{}
+	if err := json.Unmarshal(b, &temp); err != nil {
+		return err
+	}
+
+	on, err := stringToDuration(temp.LightOnDuration)
+	if err != nil {
+		return err
+	}
+
+	off, err := stringToDuration(temp.LightOffDuration)
+	if err != nil {
+		return err
+	}
+
+	l.Color = temp.Color.toString()
+	l.LightOnDurationMillis = int64(on / time.Millisecond)
+	l.LightOffDurationMillis = int64(off / time.Millisecond)
+	return nil
+}
+
+func durationToString(ms time.Duration) string {
+	seconds := int64(ms / time.Second)
+	nanos := int64((ms - time.Duration(seconds)*time.Second) / time.Nanosecond)
+	if nanos > 0 {
+		return fmt.Sprintf("%d.%09ds", seconds, nanos)
+	}
+	return fmt.Sprintf("%ds", seconds)
+}
+
+func stringToDuration(s string) (time.Duration, error) {
+	segments := strings.Split(strings.TrimSuffix(s, "s"), ".")
+	if len(segments) != 1 && len(segments) != 2 {
+		return 0, fmt.Errorf("incorrect number of segments in ttl: %q", s)
+	}
+
+	seconds, err := strconv.ParseInt(segments[0], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse %s: %v", s, err)
+	}
+
+	ttl := time.Duration(seconds) * time.Second
+	if len(segments) == 2 {
+		nanos, err := strconv.ParseInt(strings.TrimLeft(segments[1], "0"), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse %s: %v", s, err)
+		}
+		ttl += time.Duration(nanos) * time.Nanosecond
+	}
+
+	return ttl, nil
+}
+
+type color struct {
+	Red   float64 `json:"red"`
+	Green float64 `json:"green"`
+	Blue  float64 `json:"blue"`
+	Alpha float64 `json:"alpha"`
+}
+
+func newColor(clr string) (*color, error) {
+	red, err := strconv.ParseInt(clr[1:3], 16, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %v", clr, err)
+	}
+
+	green, err := strconv.ParseInt(clr[3:5], 16, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %v", clr, err)
+	}
+
+	blue, err := strconv.ParseInt(clr[5:7], 16, 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %v", clr, err)
+	}
+
+	alpha := int64(255)
+	if len(clr) == 9 {
+		alpha, err = strconv.ParseInt(clr[7:9], 16, 32)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %v", clr, err)
+		}
+	}
+
+	return &color{
+		Red:   float64(red) / 255.0,
+		Green: float64(green) / 255.0,
+		Blue:  float64(blue) / 255.0,
+		Alpha: float64(alpha) / 255.0,
+	}, nil
+}
+
+func (c *color) toString() string {
+	red := int(c.Red * 255.0)
+	green := int(c.Green * 255.0)
+	blue := int(c.Blue * 255.0)
+	alpha := int(c.Alpha * 255.0)
+	if alpha == 255 {
+		return fmt.Sprintf("#%X%X%X", red, green, blue)
+	}
+	return fmt.Sprintf("#%X%X%X%X", red, green, blue, alpha)
+}
+
+// AndroidFCMOptions contains additional options for features provided by the FCM Android SDK.
+type AndroidFCMOptions struct {
+	AnalyticsLabel string `json:"analytics_label,omitempty"`
 }
 
 // WebpushConfig contains messaging options specific to the WebPush protocol.
@@ -277,7 +554,7 @@ type WebpushConfig struct {
 	Headers      map[string]string    `json:"headers,omitempty"`
 	Data         map[string]string    `json:"data,omitempty"`
 	Notification *WebpushNotification `json:"notification,omitempty"`
-	FcmOptions   *WebpushFcmOptions   `json:"fcmOptions,omitempty"`
+	FcmOptions   *WebpushFcmOptions   `json:"fcm_options,omitempty"`
 }
 
 // WebpushNotificationAction represents an action that can be performed upon receiving a WebPush notification.
@@ -393,8 +670,9 @@ type WebpushFcmOptions struct {
 // See https://developer.apple.com/library/content/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/CommunicatingwithAPNs.html
 // for more details on supported headers and payload keys.
 type APNSConfig struct {
-	Headers map[string]string `json:"headers,omitempty"`
-	Payload *APNSPayload      `json:"payload,omitempty"`
+	Headers    map[string]string `json:"headers,omitempty"`
+	Payload    *APNSPayload      `json:"payload,omitempty"`
+	FCMOptions *APNSFCMOptions   `json:"fcm_options,omitempty"`
 }
 
 // APNSPayload is the payload that can be included in an APNS message.
@@ -603,45 +881,27 @@ type ApsAlert struct {
 	LaunchImage     string   `json:"launch-image,omitempty"`
 }
 
+// APNSFCMOptions contains additional options for features provided by the FCM Aps SDK.
+type APNSFCMOptions struct {
+	AnalyticsLabel string `json:"analytics_label,omitempty"`
+	ImageURL       string `json:"image,omitempty"`
+}
+
+// FCMOptions contains additional options to use across all platforms.
+type FCMOptions struct {
+	AnalyticsLabel string `json:"analytics_label,omitempty"`
+}
+
 // ErrorInfo is a topic management error.
 type ErrorInfo struct {
 	Index  int
 	Reason string
 }
 
-// TopicManagementResponse is the result produced by topic management operations.
-//
-// TopicManagementResponse provides an overview of how many input tokens were successfully handled,
-// and how many failed. In case of failures, the Errors list provides specific details concerning
-// each error.
-type TopicManagementResponse struct {
-	SuccessCount int
-	FailureCount int
-	Errors       []*ErrorInfo
-}
-
-func newTopicManagementResponse(resp *iidResponse) *TopicManagementResponse {
-	tmr := &TopicManagementResponse{}
-	for idx, res := range resp.Results {
-		if len(res) == 0 {
-			tmr.SuccessCount++
-		} else {
-			tmr.FailureCount++
-			code := res["error"].(string)
-			info, ok := iidErrorCodes[code]
-			var reason string
-			if ok {
-				reason = info.Msg
-			} else {
-				reason = unknownError
-			}
-			tmr.Errors = append(tmr.Errors, &ErrorInfo{
-				Index:  idx,
-				Reason: reason,
-			})
-		}
-	}
-	return tmr
+// Client is the interface for the Firebase Cloud Messaging (FCM) service.
+type Client struct {
+	*fcmClient
+	*iidClient
 }
 
 // NewClient creates a new instance of the Firebase Cloud Messaging Client.
@@ -659,12 +919,37 @@ func NewClient(ctx context.Context, c *internal.MessagingConfig) (*Client, error
 	}
 
 	return &Client{
-		fcmEndpoint: messagingEndpoint,
-		iidEndpoint: iidEndpoint,
-		client:      &internal.HTTPClient{Client: hc},
-		project:     c.ProjectID,
-		version:     "Go/Admin/" + c.Version,
+		fcmClient: newFCMClient(hc, c),
+		iidClient: newIIDClient(hc),
 	}, nil
+}
+
+type fcmClient struct {
+	fcmEndpoint   string
+	batchEndpoint string
+	project       string
+	version       string
+	httpClient    *internal.HTTPClient
+}
+
+func newFCMClient(hc *http.Client, conf *internal.MessagingConfig) *fcmClient {
+	client := internal.WithDefaultRetryConfig(hc)
+	client.CreateErrFn = handleFCMError
+	client.SuccessFn = internal.HasSuccessStatus
+
+	version := fmt.Sprintf("fire-admin-go/%s", conf.Version)
+	client.Opts = []internal.HTTPOption{
+		internal.WithHeader(apiFormatVersionHeader, apiFormatVersion),
+		internal.WithHeader(firebaseClientHeader, version),
+	}
+
+	return &fcmClient{
+		fcmEndpoint:   messagingEndpoint,
+		batchEndpoint: batchEndpoint,
+		project:       conf.ProjectID,
+		version:       version,
+		httpClient:    client,
+	}
 }
 
 // Send sends a Message to Firebase Cloud Messaging.
@@ -672,7 +957,7 @@ func NewClient(ctx context.Context, c *internal.MessagingConfig) (*Client, error
 // The Message must specify exactly one of Token, Topic and Condition fields. FCM will
 // customize the message for each target platform based on the arguments specified in the
 // Message.
-func (c *Client) Send(ctx context.Context, message *Message) (string, error) {
+func (c *fcmClient) Send(ctx context.Context, message *Message) (string, error) {
 	payload := &fcmRequest{
 		Message: message,
 	}
@@ -683,7 +968,7 @@ func (c *Client) Send(ctx context.Context, message *Message) (string, error) {
 //
 // This function does not actually deliver the message to target devices. Instead, it performs all
 // the SDK-level and backend validations on the message, and emulates the send operation.
-func (c *Client) SendDryRun(ctx context.Context, message *Message) (string, error) {
+func (c *fcmClient) SendDryRun(ctx context.Context, message *Message) (string, error) {
 	payload := &fcmRequest{
 		ValidateOnly: true,
 		Message:      message,
@@ -691,28 +976,20 @@ func (c *Client) SendDryRun(ctx context.Context, message *Message) (string, erro
 	return c.makeSendRequest(ctx, payload)
 }
 
-// SubscribeToTopic subscribes a list of registration tokens to a topic.
-//
-// The tokens list must not be empty, and have at most 1000 tokens.
-func (c *Client) SubscribeToTopic(ctx context.Context, tokens []string, topic string) (*TopicManagementResponse, error) {
-	req := &iidRequest{
-		Topic:  topic,
-		Tokens: tokens,
-		op:     iidSubscribe,
+func (c *fcmClient) makeSendRequest(ctx context.Context, req *fcmRequest) (string, error) {
+	if err := validateMessage(req.Message); err != nil {
+		return "", err
 	}
-	return c.makeTopicManagementRequest(ctx, req)
-}
 
-// UnsubscribeFromTopic unsubscribes a list of registration tokens from a topic.
-//
-// The tokens list must not be empty, and have at most 1000 tokens.
-func (c *Client) UnsubscribeFromTopic(ctx context.Context, tokens []string, topic string) (*TopicManagementResponse, error) {
-	req := &iidRequest{
-		Topic:  topic,
-		Tokens: tokens,
-		op:     iidUnsubscribe,
+	request := &internal.Request{
+		Method: http.MethodPost,
+		URL:    fmt.Sprintf("%s/projects/%s/messages:send", c.fcmEndpoint, c.project),
+		Body:   internal.NewJSONEntity(req),
 	}
-	return c.makeTopicManagementRequest(ctx, req)
+
+	var result fcmResponse
+	_, err := c.httpClient.DoAndUnmarshal(ctx, request, &result)
+	return result.Name, err
 }
 
 // IsInternal checks if the given error was due to an internal server error.
@@ -785,43 +1062,7 @@ type fcmError struct {
 	} `json:"error"`
 }
 
-type iidRequest struct {
-	Topic  string   `json:"to"`
-	Tokens []string `json:"registration_tokens"`
-	op     string
-}
-
-type iidResponse struct {
-	Results []map[string]interface{} `json:"results"`
-}
-
-type iidError struct {
-	Error string `json:"error"`
-}
-
-func (c *Client) makeSendRequest(ctx context.Context, req *fcmRequest) (string, error) {
-	if err := validateMessage(req.Message); err != nil {
-		return "", err
-	}
-
-	request := &internal.Request{
-		Method: http.MethodPost,
-		URL:    fmt.Sprintf("%s/projects/%s/messages:send", c.fcmEndpoint, c.project),
-		Body:   internal.NewJSONEntity(req),
-		Opts:   []internal.HTTPOption{internal.WithHeader("X-GOOG-API-FORMAT-VERSION", "2")},
-	}
-
-	resp, err := c.client.Do(ctx, request)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.Status == http.StatusOK {
-		var result fcmResponse
-		err := json.Unmarshal(resp.Body, &result)
-		return result.Name, err
-	}
-
+func handleFCMError(resp *internal.Response) error {
 	var fe fcmError
 	json.Unmarshal(resp.Body, &fe) // ignore any json parse errors at this level
 	var serverCode string
@@ -846,61 +1087,5 @@ func (c *Client) makeSendRequest(ctx context.Context, req *fcmRequest) (string, 
 	if fe.Error.Message != "" {
 		msg += "; details: " + fe.Error.Message
 	}
-	return "", internal.Errorf(clientCode, "http error status: %d; reason: %s", resp.Status, msg)
-}
-
-func (c *Client) makeTopicManagementRequest(ctx context.Context, req *iidRequest) (*TopicManagementResponse, error) {
-	if len(req.Tokens) == 0 {
-		return nil, fmt.Errorf("no tokens specified")
-	}
-	if len(req.Tokens) > 1000 {
-		return nil, fmt.Errorf("tokens list must not contain more than 1000 items")
-	}
-	for _, token := range req.Tokens {
-		if token == "" {
-			return nil, fmt.Errorf("tokens list must not contain empty strings")
-		}
-	}
-
-	if req.Topic == "" {
-		return nil, fmt.Errorf("topic name not specified")
-	}
-	if !topicNamePattern.MatchString(req.Topic) {
-		return nil, fmt.Errorf("invalid topic name: %q", req.Topic)
-	}
-
-	if !strings.HasPrefix(req.Topic, "/topics/") {
-		req.Topic = "/topics/" + req.Topic
-	}
-
-	request := &internal.Request{
-		Method: http.MethodPost,
-		URL:    fmt.Sprintf("%s/%s", c.iidEndpoint, req.op),
-		Body:   internal.NewJSONEntity(req),
-		Opts:   []internal.HTTPOption{internal.WithHeader("access_token_auth", "true")},
-	}
-	resp, err := c.client.Do(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.Status == http.StatusOK {
-		var result iidResponse
-		if err := json.Unmarshal(resp.Body, &result); err != nil {
-			return nil, err
-		}
-		return newTopicManagementResponse(&result), nil
-	}
-
-	var ie iidError
-	json.Unmarshal(resp.Body, &ie) // ignore any json parse errors at this level
-	var clientCode, msg string
-	info, ok := iidErrorCodes[ie.Error]
-	if ok {
-		clientCode, msg = info.Code, info.Msg
-	} else {
-		clientCode = unknownError
-		msg = fmt.Sprintf("client encountered an unknown error; response: %s", string(resp.Body))
-	}
-	return nil, internal.Errorf(clientCode, "http error status: %d; reason: %s", resp.Status, msg)
+	return internal.Errorf(clientCode, "http error status: %d; reason: %s", resp.Status, msg)
 }

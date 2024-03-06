@@ -15,6 +15,7 @@
 package messaging
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -22,8 +23,9 @@ import (
 )
 
 var (
-	bareTopicNamePattern = regexp.MustCompile("^[a-zA-Z0-9-_.~%]+$")
-	colorPattern         = regexp.MustCompile("^#[0-9a-fA-F]{6}$")
+	bareTopicNamePattern  = regexp.MustCompile("^[a-zA-Z0-9-_.~%]+$")
+	colorPattern          = regexp.MustCompile("^#[0-9a-fA-F]{6}$")
+	colorWithAlphaPattern = regexp.MustCompile("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")
 )
 
 func validateMessage(message *Message) error {
@@ -44,6 +46,11 @@ func validateMessage(message *Message) error {
 		}
 	}
 
+	// validate Notification
+	if err := validateNotification(message.Notification); err != nil {
+		return err
+	}
+
 	// validate AndroidConfig
 	if err := validateAndroidConfig(message.Android); err != nil {
 		return err
@@ -58,6 +65,20 @@ func validateMessage(message *Message) error {
 	return validateAPNSConfig(message.APNS)
 }
 
+func validateNotification(notification *Notification) error {
+	if notification == nil {
+		return nil
+	}
+
+	image := notification.ImageURL
+	if image != "" {
+		if _, err := url.ParseRequestURI(image); err != nil {
+			return fmt.Errorf("invalid image URL: %q", image)
+		}
+	}
+	return nil
+}
+
 func validateAndroidConfig(config *AndroidConfig) error {
 	if config == nil {
 		return nil
@@ -69,6 +90,7 @@ func validateAndroidConfig(config *AndroidConfig) error {
 	if config.Priority != "" && config.Priority != "normal" && config.Priority != "high" {
 		return fmt.Errorf("priority must be 'normal' or 'high'")
 	}
+
 	// validate AndroidNotification
 	return validateAndroidNotification(config.Notification)
 }
@@ -86,11 +108,48 @@ func validateAndroidNotification(notification *AndroidNotification) error {
 	if len(notification.BodyLocArgs) > 0 && notification.BodyLocKey == "" {
 		return fmt.Errorf("bodyLocKey is required when specifying bodyLocArgs")
 	}
+	image := notification.ImageURL
+	if image != "" {
+		if _, err := url.ParseRequestURI(image); err != nil {
+			return fmt.Errorf("invalid image URL: %q", image)
+		}
+	}
+	for _, timing := range notification.VibrateTimingMillis {
+		if timing < 0 {
+			return fmt.Errorf("vibrateTimingMillis must not be negative")
+		}
+	}
+
+	return validateLightSettings(notification.LightSettings)
+}
+
+func validateLightSettings(light *LightSettings) error {
+	if light == nil {
+		return nil
+	}
+	if !colorWithAlphaPattern.MatchString(light.Color) {
+		return errors.New("color must be in #RRGGBB or #RRGGBBAA form")
+	}
+	if light.LightOnDurationMillis < 0 {
+		return errors.New("lightOnDuration must not be negative")
+	}
+	if light.LightOffDurationMillis < 0 {
+		return errors.New("lightOffDuration must not be negative")
+	}
 	return nil
 }
 
 func validateAPNSConfig(config *APNSConfig) error {
 	if config != nil {
+		// validate FCMOptions
+		if config.FCMOptions != nil {
+			image := config.FCMOptions.ImageURL
+			if image != "" {
+				if _, err := url.ParseRequestURI(image); err != nil {
+					return fmt.Errorf("invalid image URL: %q", image)
+				}
+			}
+		}
 		return validateAPNSPayload(config.Payload)
 	}
 	return nil

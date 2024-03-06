@@ -25,7 +25,6 @@ import (
 
 	"firebase.google.com/go/internal"
 	"google.golang.org/api/option"
-	"google.golang.org/api/transport"
 )
 
 const userAgentFormat = "Firebase/HTTP/%s/%s/AdminGo"
@@ -44,14 +43,6 @@ type Client struct {
 // This function can only be invoked from within the SDK. Client applications should access the
 // Database service through firebase.App.
 func NewClient(ctx context.Context, c *internal.DatabaseConfig) (*Client, error) {
-	opts := append([]option.ClientOption{}, c.Opts...)
-	ua := fmt.Sprintf(userAgentFormat, c.Version, runtime.Version())
-	opts = append(opts, option.WithUserAgent(ua))
-	hc, _, err := transport.NewHTTPClient(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-
 	p, err := url.ParseRequestURI(c.URL)
 	if err != nil {
 		return nil, err
@@ -69,6 +60,14 @@ func NewClient(ctx context.Context, c *internal.DatabaseConfig) (*Client, error)
 		}
 	}
 
+	opts := append([]option.ClientOption{}, c.Opts...)
+	ua := fmt.Sprintf(userAgentFormat, c.Version, runtime.Version())
+	opts = append(opts, option.WithUserAgent(ua))
+	hc, _, err := internal.NewHTTPClient(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	ep := func(b []byte) string {
 		var p struct {
 			Error string `json:"error"`
@@ -78,8 +77,10 @@ func NewClient(ctx context.Context, c *internal.DatabaseConfig) (*Client, error)
 		}
 		return p.Error
 	}
+	hc.ErrParser = ep
+
 	return &Client{
-		hc:           &internal.HTTPClient{Client: hc, ErrParser: ep},
+		hc:           hc,
 		url:          fmt.Sprintf("https://%s", p.Host),
 		authOverride: string(ao),
 	}, nil
@@ -113,7 +114,6 @@ func (c *Client) send(
 	if c.authOverride != "" {
 		opts = append(opts, internal.WithQueryParam(authVarOverride, c.authOverride))
 	}
-	opts = append(opts, internal.WithHeader("X-Firebase-Decoding", "1"))
 	return c.hc.Do(ctx, &internal.Request{
 		Method: method,
 		URL:    fmt.Sprintf("%s%s.json", c.url, path),

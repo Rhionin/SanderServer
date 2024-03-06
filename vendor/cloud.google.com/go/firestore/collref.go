@@ -16,10 +16,8 @@ package firestore
 
 import (
 	"context"
-	"math/rand"
-	"os"
-	"sync"
-	"time"
+	"crypto/rand"
+	"fmt"
 )
 
 // A CollectionRef is a reference to Firestore collection.
@@ -51,6 +49,10 @@ type CollectionRef struct {
 
 	// Use the methods of Query on a CollectionRef to create and run queries.
 	Query
+
+	// readSettings specifies constraints for reading documents in the collection
+	// e.g. read time
+	readSettings *readSettings
 }
 
 func newTopLevelCollRef(c *Client, dbPath, id string) *CollectionRef {
@@ -66,6 +68,7 @@ func newTopLevelCollRef(c *Client, dbPath, id string) *CollectionRef {
 			path:         dbPath + "/documents/" + id,
 			parentPath:   dbPath + "/documents",
 		},
+		readSettings: &readSettings{},
 	}
 }
 
@@ -84,6 +87,7 @@ func newCollRefWithParent(c *Client, parent *DocumentRef, id string) *Collection
 			path:         parent.Path + "/" + id,
 			parentPath:   parent.Path,
 		},
+		readSettings: &readSettings{},
 	}
 }
 
@@ -97,6 +101,9 @@ func (c *CollectionRef) Doc(id string) *DocumentRef {
 }
 
 // NewDoc returns a DocumentRef with a uniquely generated ID.
+//
+// NewDoc will panic if crypto/rand cannot generate enough bytes to make a new
+// doc ID.
 func (c *CollectionRef) NewDoc() *DocumentRef {
 	return c.Doc(uniqueID())
 }
@@ -120,22 +127,27 @@ func (c *CollectionRef) Add(ctx context.Context, data interface{}) (*DocumentRef
 // missing documents. A missing document is a document that does not exist but has
 // sub-documents.
 func (c *CollectionRef) DocumentRefs(ctx context.Context) *DocumentRefIterator {
-	return newDocumentRefIterator(ctx, c, nil)
+	return newDocumentRefIterator(ctx, c, nil, c.readSettings)
 }
 
 const alphanum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
-var (
-	rngMu sync.Mutex
-	rng   = rand.New(rand.NewSource(time.Now().UnixNano() ^ int64(os.Getpid())))
-)
-
 func uniqueID() string {
-	var b [20]byte
-	rngMu.Lock()
-	for i := 0; i < len(b); i++ {
-		b[i] = alphanum[rng.Intn(len(alphanum))]
+	b := make([]byte, 20)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("firestore: crypto/rand.Read error: %v", err))
 	}
-	rngMu.Unlock()
-	return string(b[:])
+	for i, byt := range b {
+		b[i] = alphanum[int(byt)%len(alphanum)]
+	}
+	return string(b)
+}
+
+// WithReadOptions specifies constraints for accessing documents from the database,
+// e.g. at what time snapshot to read the documents.
+func (c *CollectionRef) WithReadOptions(opts ...ReadOption) *CollectionRef {
+	for _, ro := range opts {
+		ro.apply(c.readSettings)
+	}
+	return c
 }
