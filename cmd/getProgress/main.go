@@ -9,6 +9,11 @@ import (
 	"github.com/Rhionin/SanderServer/progress"
 )
 
+var (
+	username = os.Getenv("GIT_USERNAME")
+	apiKey   = os.Getenv("GIT_API_KEY")
+)
+
 func main() {
 	checker := progress.WebProgressChecker{
 		URL: "http://brandonsanderson.com",
@@ -27,7 +32,7 @@ func main() {
 	}
 
 	// create and open the status-page.html file to write into it
-	filename := "status-page.html"
+	filename := progress.StatusPageFilename
 	file, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file:", err)
@@ -53,4 +58,12 @@ func main() {
 
 	// print the absolute path of the written file
 	fmt.Println("Status page created successfully at:", absPath)
+
+	if username != "" && apiKey != "" {
+		fmt.Println("Publishing status page to github...")
+		if err = progress.PublishStatusPage(username, apiKey, page); err != nil {
+			fmt.Println("Error publishing status page:", err)
+			os.Exit(1)
+		}
+	}
 }
