@@ -46,6 +46,11 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 		fmt.Println("Slack notifications enabled")
 	}
 
+	statusPagePublishingEnabled := m.Config.GithubUsername != "" && m.Config.GithubApiKey != ""
+	if statusPagePublishingEnabled {
+		fmt.Println("Status page publishing enabled")
+	}
+
 	c := cron.New()
 	fmt.Println(m.Config.ProgressCheckInterval)
 	c.AddFunc(m.Config.ProgressCheckInterval, func() {
@@ -81,7 +86,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 						}
 					}
 
-					if m.Config.GithubUsername != "" && m.Config.GithubApiKey != "" {
+					if statusPagePublishingEnabled {
 						fmt.Println("Publishing status page update...")
 						statusPageContent, err := CreateStatusPage(currentWips)
 						if err != nil {
