@@ -82,12 +82,15 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 					}
 
 					if m.Config.GithubUsername != "" && m.Config.GithubApiKey != "" {
+						fmt.Println("Publishing status page update...")
 						statusPageContent, err := CreateStatusPage(currentWips)
 						if err != nil {
 							fmt.Printf("Failed to create status page: %s\n", err)
 						} else {
 							if err = PublishStatusPage(m.Config.GithubUsername, m.Config.GithubApiKey, statusPageContent); err != nil {
 								fmt.Printf("Failed to publish status page: %s\n", err)
+							} else {
+								fmt.Println("Status page update complete!")
 							}
 						}
 					}
