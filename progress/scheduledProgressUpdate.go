@@ -46,6 +46,11 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 		fmt.Println("Slack notifications enabled")
 	}
 
+	statusPagePublishingEnabled := m.Config.GithubUsername != "" && m.Config.GithubApiKey != ""
+	if statusPagePublishingEnabled {
+		fmt.Println("Status page publishing enabled")
+	}
+
 	c := cron.New()
 	fmt.Println(m.Config.ProgressCheckInterval)
 	c.AddFunc(m.Config.ProgressCheckInterval, func() {
@@ -80,6 +85,21 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 							fmt.Println(err)
 						}
 					}
+
+					if statusPagePublishingEnabled {
+						fmt.Println("Publishing status page update...")
+						statusPageContent, err := CreateStatusPage(currentWips)
+						if err != nil {
+							fmt.Printf("Failed to create status page: %s\n", err)
+						} else {
+							if err = PublishStatusPage(m.Config.GithubUsername, m.Config.GithubApiKey, statusPageContent); err != nil {
+								fmt.Printf("Failed to publish status page: %s\n", err)
+							} else {
+								fmt.Println("Status page update complete!")
+							}
+						}
+					}
+
 				} else {
 					fmt.Println("No update. Next check at", c.Entries()[0].Next)
 				}
@@ -95,7 +115,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 // SendFCMUpdate pushes an update via FCM
 func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {
 
-	fmt.Println("Sending FCM message to topic "+topic, wips);
+	fmt.Println("Sending FCM message to topic "+topic, wips)
 
 	wipsStr, err := json.Marshal(wips)
 	if err != nil {
