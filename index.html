@@ -1,10 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --progress-height: 60px;
+            --progress-container-border-width: 6px;
+            --progress-background-color: #efefef;
+
+            --complete-color: #4caf50;
+            --complete-color-shadow: #4caf50aa;
+
+            /* generated using https://colordesigner.io/gradient-generator/?mode=oklch#ED4040-4CAE4F */
+            --grad-00: #ed4040;
+            --grad-10: #e44388;
+            --grad-20: #cd53c0;
+            --grad-30: #a967e9;
+            --grad-40: #787cfe;
+            --grad-50: #1992fa;
+            --grad-60: #00a2d3;
+            --grad-70: #00aaaf;
+            --grad-80: #00b187;
+            --grad-90: #4cae4f;
+            --grad-90: #4cae4f;
+            --grad-100: #4caf50;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Poppins", Arial, sans-serif;
             font-size: 16px;
+        }
+        .work {
+            width: 80%;
+            margin: 28px auto;
         }
         .title {
             text-align: center;
@@ -12,32 +41,60 @@
             margin-top: 20px;
         }
         .progress-bar {
-            width: 80%;
-            background-color: #f3f3f3;
-            border-radius: 3px;
-            margin: 20px auto;
-            padding: 3px;
-        }
-        .fill {
             display: flex;
             align-items: center;
+            height: var(--progress-height);
+            background-color: var(--progress-background-color);
+            border-radius: calc(var(--progress-height) / 2);
+            padding: 0 var(--progress-container-border-width);
+        }
+        .fill {
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            box-sizing: border-box;
+            align-items: center;
             justify-content: flex-end;
-            height: 30px;
-            background-color: #4caf50;
-            border-radius: 3px;
-            width: 0%;
+            height: calc(var(--progress-height) - (var(--progress-container-border-width) * 2));
+            background-color: var(--fill);
+            border-radius: calc(var(--progress-height) / 2);
             transition: width 0.4s ease-in-out;
             color: #fff;
             padding-right: 10px;
+            min-width: 64px;
+            font-size: 1.4em;
         }
+
+        .progress-bar.progress-100 {
+            box-shadow: 0px 0px var(--progress-container-border-width) var(--progress-container-border-width) var(--complete-color-shadow);
+        }
+
+        .shine:after {
+	        content: '';
+            top: 0;
+            transform: translateX(100%);
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: 1;
+            animation: shine 1s infinite 3s;
+
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%,rgba(255,255,255,0.5) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%);
+        }
+
+        @keyframes shine {
+            0% {transform:translateX(-100%);}
+            100% {transform:translateX(100%);}
+        }
+
         .label {
             text-align: center;
             padding: 5px;
-            font-size: 3em;
+            font-size: 4.5em;
         }
         .percentage {
             font-weight: bold;
-            font-size: 1.5em;
+            font-size: 1.8em;
         }
     </style>
 </head>
@@ -46,31 +103,39 @@
         Brandon Sanderson's Works In Progress
     </div>
     
-    <div class="progress-bar">
-        <span class="label">Stormlight 5 (3.0 Revision)</span>
-        <div class="fill" style="width:80%">
-          <span class="percentage">80%</span>
+    <div class="work">
+    <span class="label">Stormlight 5 (3.0 Revision)</span>
+        <div class="progress-bar progress-80" style="--fill:var(--grad-80)">
+            <div class="fill " style="width:80%">
+                <span class="percentage">80%</span>
+            </div>
         </div>
     </div>
     
-    <div class="progress-bar">
-        <span class="label">Skyward Legacy Revision</span>
-        <div class="fill" style="width:53%">
-          <span class="percentage">53%</span>
+    <div class="work">
+    <span class="label">Skyward Legacy Revision</span>
+        <div class="progress-bar progress-53" style="--fill:var(--grad-50)">
+            <div class="fill " style="width:53%">
+                <span class="percentage">53%</span>
+            </div>
         </div>
     </div>
     
-    <div class="progress-bar">
-        <span class="label">Defiant Final Draft</span>
-        <div class="fill" style="width:100%">
-          <span class="percentage">100%</span>
+    <div class="work">
+    <span class="label">Defiant Final Draft</span>
+        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
+            <div class="fill shine" style="width:100%">
+                <span class="percentage">100%</span>
+            </div>
         </div>
     </div>
     
-    <div class="progress-bar">
-        <span class="label">Skyward Legacy Book One</span>
-        <div class="fill" style="width:100%">
-          <span class="percentage">100%</span>
+    <div class="work">
+    <span class="label">Skyward Legacy Book One</span>
+        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
+            <div class="fill shine" style="width:100%">
+                <span class="percentage">100%</span>
+            </div>
         </div>
     </div>
     
