@@ -69,24 +69,6 @@
             box-shadow: 0px 0px var(--progress-container-border-width) var(--progress-container-border-width) var(--complete-color-shadow);
         }
 
-        .shine:after {
-	        content: '';
-            top: 0;
-            transform: translateX(100%);
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            z-index: 1;
-            animation: shine 1s infinite 3s;
-
-            background: linear-gradient(to right, rgba(255,255,255,0) 0%,rgba(255,255,255,0.5) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%);
-        }
-
-        @keyframes shine {
-            0% {transform:translateX(-100%);}
-            100% {transform:translateX(100%);}
-        }
-
         .label {
             text-align: center;
             padding: 5px;
@@ -106,7 +88,7 @@
     <div class="work">
     <span class="label">Stormlight 5 (3.0 Revision)</span>
         <div class="progress-bar progress-89" style="--fill:var(--grad-80)">
-            <div class="fill " style="width:89%">
+            <div class="fill" style="width:89%">
                 <span class="percentage">89%</span>
             </div>
         </div>
@@ -115,7 +97,7 @@
     <div class="work">
     <span class="label">Skyward Legacy Revision</span>
         <div class="progress-bar progress-62" style="--fill:var(--grad-60)">
-            <div class="fill " style="width:62%">
+            <div class="fill" style="width:62%">
                 <span class="percentage">62%</span>
             </div>
         </div>
@@ -124,7 +106,7 @@
     <div class="work">
     <span class="label">Defiant Final Draft</span>
         <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill shine" style="width:100%">
+            <div class="fill" style="width:100%">
                 <span class="percentage">100%</span>
             </div>
         </div>
@@ -133,7 +115,7 @@
     <div class="work">
     <span class="label">Skyward Legacy Book One</span>
         <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill shine" style="width:100%">
+            <div class="fill" style="width:100%">
                 <span class="percentage">100%</span>
             </div>
         </div>
