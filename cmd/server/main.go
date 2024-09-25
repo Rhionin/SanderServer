@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -17,10 +18,26 @@ var (
 	historyFile                   = getenvOrDefault("HISTORY_FILE", "./history.json")
 	firebaseCredentialsConfigPath = getenvRequired("FIREBASE_CONFIG")
 	configPath                    = getenvRequired("CONFIG")
+	logOutput                     = (func() io.Writer {
+		logFile := os.Getenv("LOG_FILE")
+		if logFile == "" {
+			return os.Stdout
+		}
+
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatalf("Error opening log file %q: %s", logFile, err)
+		}
+
+		return f
+	})()
 )
 
 func main() {
 	ctx := context.Background()
+
+	log.SetOutput(logOutput)
+
 	firebaseClient, err := firebase.NewMessagingClient(ctx, firebaseCredentialsConfigPath)
 	if err != nil {
 		log.Fatalf("initialize Firebase messaging client: %s", err)
