@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -18,23 +19,24 @@ var (
 	historyFile                   = getenvOrDefault("HISTORY_FILE", "./history.json")
 	firebaseCredentialsConfigPath = getenvRequired("FIREBASE_CONFIG")
 	configPath                    = getenvRequired("CONFIG")
-	logOutput                     = (func() io.Writer {
-		logFile := os.Getenv("LOG_FILE")
-		if logFile == "" {
-			return os.Stdout
-		}
-
-		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			log.Fatalf("Error opening log file %q: %s", logFile, err)
-		}
-
-		return f
-	})()
+	logFilePath                   = os.Getenv("LOG_FILE")
 )
 
 func main() {
 	ctx := context.Background()
+
+	var logOutput io.Writer
+	if logFilePath == "" {
+		fmt.Println("Writing logs to", logFilePath)
+		f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+		if err != nil {
+			log.Fatalf("Error opening log file %q: %s", logFilePath, err)
+		}
+		logOutput = f
+	} else {
+		fmt.Println("Writing logs to stdout")
+		logOutput = os.Stdout
+	}
 
 	log.SetOutput(logOutput)
 
