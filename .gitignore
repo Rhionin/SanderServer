@@ -4,4 +4,6 @@ cmd/sendTestGCMUpdate/sendTestGCMUpdate
 runserver
 stormwatch*firebase*.json
 history.txt
+history.json
 index.html
+firebase-config.json

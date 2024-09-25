@@ -7,7 +7,6 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.1
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.11.0
-	github.com/robfig/cron v1.2.0
 	google.golang.org/api v0.168.0
 	gopkg.in/yaml.v2 v2.4.0
 )

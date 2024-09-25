@@ -19,7 +19,10 @@ func main() {
 		URL: "http://brandonsanderson.com",
 	}
 
-	latestProgress := checker.GetProgress()
+	latestProgress, err := checker.GetProgress()
+	if err != nil {
+		log.Fatalf("get progress: %s", err)
+	}
 
 	fmt.Println("Latest progress from " + checker.URL)
 	for _, wip := range latestProgress {
@@ -27,7 +30,6 @@ func main() {
 	}
 
 	var page []byte
-	var err error
 	if len(latestProgress) == 0 {
 		fmt.Println("\tNo works in progress detected...")
 		page = progress.ErrorPageContent

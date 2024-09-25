@@ -2,8 +2,10 @@ package progress
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 )
 
 type (
@@ -13,21 +15,25 @@ type (
 	}
 )
 
+var ErrEmptyProgressFile = fmt.Errorf("empty progress file")
+
 // GetProgress gets progress from file
-func (rw *JSONFileReadWriter) GetProgress() []WorkInProgress {
-	fileBytes, err := ioutil.ReadFile(rw.FilePath)
+func (rw *JSONFileReadWriter) GetProgress() ([]WorkInProgress, error) {
+	fileBytes, err := os.ReadFile(rw.FilePath)
 	if err != nil {
-		log.Println(err)
-		return []WorkInProgress{}
+		return nil, fmt.Errorf("read file %q: %w", rw.FilePath, err)
+	}
+
+	if len(fileBytes) == 0 {
+		return []WorkInProgress{}, ErrEmptyProgressFile
 	}
 
 	var wips []WorkInProgress
 	if err = json.Unmarshal(fileBytes, &wips); err != nil {
-		log.Println(err)
-		return []WorkInProgress{}
+		return nil, fmt.Errorf("unmarshal file %q: %w", rw.FilePath, err)
 	}
 
-	return wips
+	return wips, nil
 }
 
 // WriteProgress writes progress to file

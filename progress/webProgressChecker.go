@@ -1,7 +1,7 @@
 package progress
 
 import (
-	"log"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,10 +17,10 @@ type WebProgressChecker struct {
 }
 
 // GetProgress gets latest works in progress from brandonsanderson.com
-func (wpc WebProgressChecker) GetProgress() []WorkInProgress {
+func (wpc WebProgressChecker) GetProgress() ([]WorkInProgress, error) {
 	doc, err := goquery.NewDocument(wpc.URL)
 	if err != nil {
-		log.Fatal("error!", err)
+		return nil, fmt.Errorf("get document from %q: %w", wpc.URL, err)
 	}
 
 	progressDiv := doc.Find(".wpb_wrapper .vc_progress_bar").First()
@@ -35,18 +35,18 @@ func (wpc WebProgressChecker) GetProgress() []WorkInProgress {
 		entry := strings.TrimSpace(progressEntries[i])
 		submatchResult := entryRegex.FindStringSubmatch(entry)
 		if len(submatchResult) != 3 {
-			log.Fatalf("Could not parse title and progress from progress entry: \"%s\"", entry)
+			return nil, fmt.Errorf("failed to parse title and progress from progress entry: %q", entry)
 		}
 
 		title := strings.TrimSpace(submatchResult[1])
 		progress, err := strconv.Atoi(strings.TrimSpace(submatchResult[2]))
 
 		if err != nil {
-			log.Fatal("Error parsing progress for ", entry)
+			return nil, fmt.Errorf("failed to parse progress for %q", entry)
 		} else {
 			wips[i] = WorkInProgress{Title: title, Progress: progress}
 		}
 	}
 
-	return wips
+	return wips, nil
 }

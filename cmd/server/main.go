@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	historyFile                   = getenvOrDefault("HISTORY_FILE", "./history.txt")
+	historyFile                   = getenvOrDefault("HISTORY_FILE", "./history.json")
 	firebaseCredentialsConfigPath = getenvRequired("FIREBASE_CONFIG")
 	configPath                    = getenvRequired("CONFIG")
 )
@@ -23,20 +23,19 @@ func main() {
 	ctx := context.Background()
 	firebaseClient, err := firebase.NewMessagingClient(ctx, firebaseCredentialsConfigPath)
 	if err != nil {
-		log.Println(err)
-		panic("Failed to initialize Firebase messaging client")
+		log.Fatalf("initialize Firebase messaging client: %s", err)
 	}
 
 	historyFile, err := filepath.Abs(historyFile)
 	if err != nil {
-		panic(err)
+		log.Fatalf("get history file absolute path: %s", err)
 	}
 	log.Println("Writing history to", historyFile)
 
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
 		_, err := os.Create(historyFile)
 		if err != nil {
-			panic(err)
+			log.Fatalf("create history file: %s", err)
 		}
 	}
 
@@ -51,7 +50,8 @@ func main() {
 		Config:  config.GetConfig(configPath),
 	}
 
-	monitor.ScheduleProgressCheckJob(ctx, firebaseClient)
+	cancel := monitor.ScheduleProgressCheckJob(ctx, firebaseClient)
+	defer cancel()
 
 	waitForInterruptSignal()
 	log.Println("exiting")
