@@ -1,125 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Web Page</title>
     <style>
-        :root {
-            --progress-height: 60px;
-            --progress-container-border-width: 6px;
-            --progress-background-color: #efefef;
-
-            --complete-color: #4caf50;
-            --complete-color-shadow: #4caf50aa;
-
-            /* generated using https://colordesigner.io/gradient-generator/?mode=oklch#ED4040-4CAE4F */
-            --grad-00: #ed4040;
-            --grad-10: #e44388;
-            --grad-20: #cd53c0;
-            --grad-30: #a967e9;
-            --grad-40: #787cfe;
-            --grad-50: #1992fa;
-            --grad-60: #00a2d3;
-            --grad-70: #00aaaf;
-            --grad-80: #00b187;
-            --grad-90: #4cae4f;
-            --grad-90: #4cae4f;
-            --grad-100: #4caf50;
-        }
         body {
-            font-family: "Poppins", Arial, sans-serif;
-            font-size: 16px;
-        }
-        .work {
-            width: 80%;
-            margin: 28px auto;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .title {
             text-align: center;
             font-size: 6em;
             margin-top: 20px;
         }
-        .progress-bar {
+        .container {
             display: flex;
             align-items: center;
-            height: var(--progress-height);
-            background-color: var(--progress-background-color);
-            border-radius: calc(var(--progress-height) / 2);
-            padding: 0 var(--progress-container-border-width);
+            max-width: 1200px;
+            /* width: 100%; */
+            padding: 10px;
+            margin: 20px 0;
         }
-        .fill {
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            box-sizing: border-box;
-            align-items: center;
-            justify-content: flex-end;
-            height: calc(var(--progress-height) - (var(--progress-container-border-width) * 2));
-            background-color: var(--fill);
-            border-radius: calc(var(--progress-height) / 2);
-            transition: width 0.4s ease-in-out;
-            color: #fff;
-            padding-right: 10px;
-            min-width: 64px;
-            font-size: 1.4em;
+        .text {
+            max-width: 50%;
+            margin-right: 20px;
         }
-
-        .progress-bar.progress-100 {
-            box-shadow: 0px 0px var(--progress-container-border-width) var(--progress-container-border-width) var(--complete-color-shadow);
+        .image {
+            max-width: 45%;
         }
-
-        .label {
+        img {
+            height: 500px;
+            width: auto;
+            display: block;
+        }
+        header, footer {
             text-align: center;
-            padding: 5px;
-            font-size: 4.5em;
-        }
-        .percentage {
-            font-weight: bold;
-            font-size: 1.8em;
+            width: 100%;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
+
     <div class="title">
         Brandon Sanderson's Works In Progress
     </div>
-    
-    <div class="work">
-    <span class="label">Stormlight 5 (4.0 Revision)</span>
-        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill" style="width:100%">
-                <span class="percentage">100%</span>
-            </div>
+
+    <div class="container">
+        <div class="text">
+            <h1>I destroyed those progress bars!</h1>
+            <h1>I'm sure they were evil!</h1>
+            <h1>Aren't you proud of me?</h1>
+        </div>
+
+        <div class="image">
+            <img src="https://i.redd.it/ya0lqeucd8j81.png" alt="Nightblood">
         </div>
     </div>
-    
-    <div class="work">
-    <span class="label">Skyward Legacy Revision</span>
-        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill" style="width:100%">
-                <span class="percentage">100%</span>
-            </div>
-        </div>
-    </div>
-    
-    <div class="work">
-    <span class="label">Defiant Final Draft</span>
-        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill" style="width:100%">
-                <span class="percentage">100%</span>
-            </div>
-        </div>
-    </div>
-    
-    <div class="work">
-    <span class="label">Skyward Legacy Book One</span>
-        <div class="progress-bar progress-100" style="--fill:var(--grad-100)">
-            <div class="fill" style="width:100%">
-                <span class="percentage">100%</span>
-            </div>
-        </div>
-    </div>
-    
+
+    <footer>
+        <em>Colors! They've changed the www.brandonsanderson.com DOM again...</em>
+    </footer>
+
 </body>
 </html>
