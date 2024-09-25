@@ -26,9 +26,16 @@ func main() {
 		fmt.Println("\t", wip.ToString())
 	}
 
-	page, err := progress.CreateStatusPage(latestProgress)
-	if err != nil {
-		log.Fatal(err)
+	var page []byte
+	var err error
+	if len(latestProgress) == 0 {
+		fmt.Println("\tNo works in progress detected...")
+		page = progress.ErrorPageContent
+	} else {
+		page, err = progress.CreateStatusPage(latestProgress)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// create and open the status-page.html file to write into it

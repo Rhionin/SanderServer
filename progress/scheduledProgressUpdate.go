@@ -2,6 +2,7 @@ package progress
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -36,6 +37,9 @@ type (
 		Writer
 	}
 )
+
+//go:embed error-page.html
+var ErrorPageContent []byte
 
 // ScheduleProgressCheckJob schedules a job to repeatedly check progress
 // on Brandon Sanderson's books
@@ -102,6 +106,15 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 
 				} else {
 					fmt.Println("No update. Next check at", c.Entries()[0].Next)
+				}
+			}
+		} else {
+			fmt.Println("No works in progress detected.")
+			if statusPagePublishingEnabled {
+				if err := PublishStatusPage(m.Config.GithubUsername, m.Config.GithubApiKey, ErrorPageContent); err != nil {
+					fmt.Printf("Failed to publish error status page: %s\n", err)
+				} else {
+					fmt.Println("Error status page publish complete!")
 				}
 			}
 		}
