@@ -4,7 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"fmt"
+	"log"
 	"reflect"
 	"time"
 
@@ -47,16 +47,16 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 	prevWips := m.History.GetProgress()
 
 	if m.Config.SlackWebhookURL != "" {
-		fmt.Println("Slack notifications enabled")
+		log.Println("Slack notifications enabled")
 	}
 
 	statusPagePublishingEnabled := m.Config.GithubUsername != "" && m.Config.GithubApiKey != ""
 	if statusPagePublishingEnabled {
-		fmt.Println("Status page publishing enabled")
+		log.Println("Status page publishing enabled")
 	}
 
 	c := cron.New()
-	fmt.Println(m.Config.ProgressCheckInterval)
+	log.Println(m.Config.ProgressCheckInterval)
 	c.AddFunc(m.Config.ProgressCheckInterval, func() {
 		currentWips := m.LiveReader.GetProgress()
 		if len(currentWips) > 0 {
@@ -66,7 +66,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 				areEqual := reflect.DeepEqual(currentWips, prevWips)
 
 				if !areEqual {
-					fmt.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
+					log.Println("Update found! Pushing notification. Next check at", c.Entries()[0].Next)
 
 					// Get previous progress for existing works in progress
 					wipsUpdate := make([]WorkInProgress, len(currentWips))
@@ -82,45 +82,45 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 					}
 
 					if _, err := SendFCMUpdate(ctx, firebaseClient, wipsUpdate, m.Config.ProgressTopic); err != nil {
-						fmt.Println(err)
+						log.Println(err)
 					}
 					if m.Config.SlackWebhookURL != "" {
 						if err := SendSlackUpdate(m.Config.SlackWebhookURL, wipsUpdate); err != nil {
-							fmt.Println(err)
+							log.Println(err)
 						}
 					}
 
 					if statusPagePublishingEnabled {
-						fmt.Println("Publishing status page update...")
+						log.Println("Publishing status page update...")
 						statusPageContent, err := CreateStatusPage(currentWips)
 						if err != nil {
-							fmt.Printf("Failed to create status page: %s\n", err)
+							log.Printf("Failed to create status page: %s\n", err)
 						} else {
 							if err = PublishStatusPage(m.Config.GithubUsername, m.Config.GithubApiKey, statusPageContent); err != nil {
-								fmt.Printf("Failed to publish status page: %s\n", err)
+								log.Printf("Failed to publish status page: %s\n", err)
 							} else {
-								fmt.Println("Status page update complete!")
+								log.Println("Status page update complete!")
 							}
 						}
 					}
 
 				} else {
-					fmt.Println("No update. Next check at", c.Entries()[0].Next)
+					log.Println("No update. Next check at", c.Entries()[0].Next)
 				}
 			}
 		} else {
-			fmt.Println("No works in progress detected.")
+			log.Println("No works in progress detected.")
 			if statusPagePublishingEnabled {
 				if err := PublishStatusPage(m.Config.GithubUsername, m.Config.GithubApiKey, ErrorPageContent); err != nil {
-					fmt.Printf("Failed to publish error status page: %s\n", err)
+					log.Printf("Failed to publish error status page: %s\n", err)
 				} else {
-					fmt.Println("Error status page publish complete!")
+					log.Println("Error status page publish complete!")
 				}
 			}
 		}
 		prevWips = currentWips
 	})
-	fmt.Println("First check at", c.Entries()[0].Next)
+	log.Println("First check at", c.Entries()[0].Next)
 	c.Start()
 
 }
@@ -128,7 +128,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 // SendFCMUpdate pushes an update via FCM
 func SendFCMUpdate(ctx context.Context, firebaseClient *messaging.Client, wips []WorkInProgress, topic string) (string, error) {
 
-	fmt.Println("Sending FCM message to topic "+topic, wips)
+	log.Println("Sending FCM message to topic "+topic, wips)
 
 	wipsStr, err := json.Marshal(wips)
 	if err != nil {

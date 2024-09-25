@@ -2,8 +2,8 @@ package progress
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 )
 
 type (
@@ -17,13 +17,13 @@ type (
 func (rw *JSONFileReadWriter) GetProgress() []WorkInProgress {
 	fileBytes, err := ioutil.ReadFile(rw.FilePath)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return []WorkInProgress{}
 	}
 
 	var wips []WorkInProgress
 	if err = json.Unmarshal(fileBytes, &wips); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return []WorkInProgress{}
 	}
 
@@ -34,12 +34,12 @@ func (rw *JSONFileReadWriter) GetProgress() []WorkInProgress {
 func (rw *JSONFileReadWriter) WriteProgress(wips []WorkInProgress) error {
 	jsonStr, err := json.Marshal(wips)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 
 	if err := ioutil.WriteFile(rw.FilePath, jsonStr, 0644); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 

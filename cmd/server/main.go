@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,7 +23,7 @@ func main() {
 	ctx := context.Background()
 	firebaseClient, err := firebase.NewMessagingClient(ctx, firebaseCredentialsConfigPath)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		panic("Failed to initialize Firebase messaging client")
 	}
 
@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Writing history to", historyFile)
+	log.Println("Writing history to", historyFile)
 
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
 		_, err := os.Create(historyFile)
@@ -54,7 +54,7 @@ func main() {
 	monitor.ScheduleProgressCheckJob(ctx, firebaseClient)
 
 	waitForInterruptSignal()
-	fmt.Println("exiting")
+	log.Println("exiting")
 }
 
 func getenvOrDefault(key, fallback string) string {
@@ -90,8 +90,8 @@ func waitForInterruptSignal() {
 	// and then notify the program that it can finish.
 	go func() {
 		sig := <-sigs
-		fmt.Println()
-		fmt.Println(sig)
+		log.Println()
+		log.Println(sig)
 		done <- true
 	}()
 

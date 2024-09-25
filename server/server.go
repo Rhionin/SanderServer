@@ -1,8 +1,8 @@
 package server
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -12,7 +12,7 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 
 // Start starts the server on the specified port
 func Start(port string) {
-	fmt.Println("SanderServer started on port " + port)
+	log.Println("SanderServer started on port " + port)
 
 	http.HandleFunc("/", healthcheck)
 	http.HandleFunc("/healthcheck", healthcheck)
