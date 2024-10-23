@@ -2,14 +2,13 @@ package progress
 
 import (
 	"fmt"
-	"regexp"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
-
-var entryRegex = regexp.MustCompile("^(.*)+ ([\\d]+)%$")
 
 // WebProgressChecker checks progress from an HTML website
 type WebProgressChecker struct {
@@ -18,34 +17,56 @@ type WebProgressChecker struct {
 
 // GetProgress gets latest works in progress from brandonsanderson.com
 func (wpc WebProgressChecker) GetProgress() ([]WorkInProgress, error) {
-	doc, err := goquery.NewDocument(wpc.URL)
+	req, err := http.NewRequest(http.MethodGet, wpc.URL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("get document from %q: %w", wpc.URL, err)
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("execute request: %w", err)
+	}
+	defer response.Body.Close()
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
 	}
 
-	progressDiv := doc.Find(".wpb_wrapper .vc_progress_bar").First()
-	progressEntrySelectors := progressDiv.Find(".vc_label")
+	return parseProgressFromHTML(string(responseBody))
+}
 
-	progressEntries := progressEntrySelectors.Map(func(i int, s *goquery.Selection) string {
+func parseProgressFromHTML(html string) ([]WorkInProgress, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, fmt.Errorf("get document from HTML: %w", err)
+	}
+
+	progressEntrySelectors := doc.Find(".progress-item-uniq p")
+
+	textEntries := progressEntrySelectors.Map(func(i int, s *goquery.Selection) string {
 		return s.Text()
 	})
 
-	wips := make([]WorkInProgress, len(progressEntries))
-	for i := range progressEntries {
-		entry := strings.TrimSpace(progressEntries[i])
-		submatchResult := entryRegex.FindStringSubmatch(entry)
-		if len(submatchResult) != 3 {
-			return nil, fmt.Errorf("failed to parse title and progress from progress entry: %q", entry)
+	wips := []WorkInProgress{}
+	for i := range textEntries {
+		if i%2 == 0 {
+			continue
 		}
 
-		title := strings.TrimSpace(submatchResult[1])
-		progress, err := strconv.Atoi(strings.TrimSpace(submatchResult[2]))
-
+		progressStr := strings.TrimRight(strings.TrimSpace(textEntries[i-1]), "%")
+		if progressStr == "" {
+			return nil, fmt.Errorf("failed to parse progress from progress entry[%d]", i)
+		}
+		progress, err := strconv.Atoi(progressStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse progress for %q", entry)
-		} else {
-			wips[i] = WorkInProgress{Title: title, Progress: progress}
+			return nil, fmt.Errorf("failed to parse progress from progress entry[%d] %q: %w", i, progressStr, err)
 		}
+
+		title := strings.TrimSpace(textEntries[i])
+		if title == "" {
+			return nil, fmt.Errorf("failed to parse title from progress entry[%d]", i)
+		}
+
+		wips = append(wips, WorkInProgress{Title: title, Progress: progress})
 	}
 
 	return wips, nil
