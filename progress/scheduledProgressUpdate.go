@@ -64,7 +64,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	log.Println(m.Config.ProgressCheckInterval)
+	log.Println("Progress check interval:", m.Config.ProgressCheckInterval)
 	log.Println("First check at", time.Now().Add(m.Config.ProgressCheckInterval))
 
 	ticker := time.NewTicker(m.Config.ProgressCheckInterval)
