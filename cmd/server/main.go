@@ -26,7 +26,7 @@ func main() {
 	ctx := context.Background()
 
 	var logOutput io.Writer
-	if logFilePath == "" {
+	if logFilePath != "" {
 		fmt.Println("Writing logs to", logFilePath)
 		f, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
