@@ -7,6 +7,7 @@ toolchain go1.23.0
 require (
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/PuerkitoBio/goquery v1.10.0
+	github.com/aws/aws-lambda-go v1.47.0
 	github.com/go-git/go-billy/v5 v5.6.0
 	github.com/go-git/go-git/v5 v5.12.0
 	google.golang.org/api v0.202.0
