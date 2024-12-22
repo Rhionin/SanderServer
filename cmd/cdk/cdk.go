@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -12,8 +13,8 @@ const (
 	FuncionName        = "ProgressCheck"
 	MemorySizeMB       = 128
 	MaxDurationSeconds = 60
-	CodePath           = "getProgressLambda/."
-	Handler            = "main"
+	CodePath           = "./getProgressLambda"
+	Handler            = "bootstrap"
 )
 
 type StormWatchCdkStackProps struct {
@@ -30,10 +31,11 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 	// Define the Lambda function resource
 	progressCheckFunction := awslambda.NewFunction(stack, jsii.String("ProgressCheck"), &awslambda.FunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
-		FunctionName: jsii.String(*stack.StackName() + "-" + FuncionName),
+		Architecture: awslambda.Architecture_ARM_64(),
 		MemorySize:   jsii.Number(MemorySizeMB),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
 		Code:         awslambda.AssetCode_FromAsset(jsii.String(CodePath), nil),
+		LogRetention: awslogs.RetentionDays_ONE_DAY,
 		Handler:      jsii.String(Handler),
 	})
 
