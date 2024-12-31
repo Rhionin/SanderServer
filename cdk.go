@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsevents"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awseventstargets"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awssecretsmanager"
@@ -53,6 +55,11 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 
 	secret := awssecretsmanager.Secret_FromSecretNameV2(stack, jsii.String(SecretName+"SecretID"), jsii.String(SecretName))
 	secret.GrantRead(progressCheckFunction, nil)
+
+	awsevents.NewRule(stack, jsii.String("storm-check"), &awsevents.RuleProps{
+		Schedule: awsevents.Schedule_Expression(jsii.String("rate(5 minutes)")),
+		Targets:  &[]awsevents.IRuleTarget{awseventstargets.NewLambdaFunction(progressCheckFunction, nil)},
+	})
 
 	return stack
 }
