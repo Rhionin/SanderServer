@@ -6,6 +6,7 @@ import (
 
 	"fmt"
 
+	"github.com/Rhionin/SanderServer/progress"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
@@ -19,20 +20,19 @@ func main() {
 }
 
 func GetProgress(ctx context.Context) (interface{}, error) {
-	// checker := progress.WebProgressChecker{
-	// 	URL: "http://brandonsanderson.com",
-	// }
+	checker := progress.WebProgressChecker{
+		URL: "http://brandonsanderson.com",
+	}
 
-	// latestProgress, err := checker.GetProgress()
-	// if err != nil {
-	// 	return fmt.Errorf("get progress: %w", err)
-	// }
+	latestProgress, err := checker.GetProgress()
+	if err != nil {
+		return "", fmt.Errorf("get progress: %w", err)
+	}
 
-	// fmt.Println("Latest progress from " + checker.URL)
-	// for _, wip := range latestProgress {
-	// 	fmt.Println("\t", wip.ToString())
-	// }
-	fmt.Println("Hello, StormWatch logs!!")
+	result := fmt.Sprintf("Latest progress from %s\n", checker.URL)
+	for _, wip := range latestProgress {
+		result += fmt.Sprintf("\t%s\n", wip.ToString())
+	}
 
-	return "Hello, StormWatch caller!!", nil
+	return result, nil
 }
