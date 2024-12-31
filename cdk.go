@@ -14,8 +14,8 @@ import (
 const (
 	StackName          = "StormWatch-ProgressCheck"
 	FuncionName        = "ProgressCheck"
-	MemorySizeMB       = 128
-	MaxDurationSeconds = 60
+	MemorySizeMB       = 50
+	MaxDurationSeconds = 20
 	CodePath           = "./getProgressLambda"
 	Handler            = "bootstrap"
 	SecretName         = "StormlightArchive"
