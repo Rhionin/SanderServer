@@ -2,20 +2,27 @@ package main
 
 import (
 	"context"
-
 	"fmt"
 
 	"github.com/Rhionin/SanderServer/progress"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
-const (
-	secretName = "StormlightArchive"
-	region     = "us-west-2"
-)
+// const (
+// 	secretName = "StormlightArchive"
+// 	region     = "us-west-2"
+// )
+
+type secretStore struct {
+	GithubApiToken string `json:"GIT_API_KEY"`
+	GithubUsername string `json:"GIT_USERNAME"`
+}
+
+type httpResponse struct {
+	StatusCode int               `json:"statusCode"`
+	Headers    map[string]string `json:"headers"`
+	Body       string            `json:"body"`
+}
 
 func main() {
 	lambda.Start(GetProgress)
@@ -23,30 +30,34 @@ func main() {
 
 func GetProgress(ctx context.Context) (interface{}, error) {
 
-	config, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	if err != nil {
-		return nil, fmt.Errorf("load default config: %w", err)
-	}
+	// config, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("load default config: %w", err)
+	// }
 
-	// Create Secrets Manager client
-	svc := secretsmanager.NewFromConfig(config)
+	// // Create Secrets Manager client
+	// svc := secretsmanager.NewFromConfig(config)
 
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId:     aws.String(secretName),
-		VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
-	}
+	// input := &secretsmanager.GetSecretValueInput{
+	// 	SecretId:     aws.String(secretName),
+	// 	VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
+	// }
 
-	result, err := svc.GetSecretValue(ctx, input)
-	if err != nil {
-		// For a list of exceptions thrown, see
-		// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-		return nil, fmt.Errorf("get secrets: %w", err)
-	}
+	// result, err := svc.GetSecretValue(ctx, input)
+	// if err != nil {
+	// 	// For a list of exceptions thrown, see
+	// 	// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+	// 	return nil, fmt.Errorf("get secrets: %w", err)
+	// }
 
-	// Decrypts secret using the associated KMS key.
-	// The value is this string is the json-encoded object found at https://us-west-2.console.aws.amazon.com/secretsmanager/secret?name=StormlightArchive&region=us-west-2
-	var secretString string = *result.SecretString
-	fmt.Println(secretString[:5], secretString[len(secretString)-5:])
+	// // Decrypts secret using the associated KMS key.
+	// // The value is this string is the json-encoded object found at https://us-west-2.console.aws.amazon.com/secretsmanager/secret?name=StormlightArchive&region=us-west-2
+	// var secretString string = *result.SecretString
+
+	// var secrets secretStore
+	// if err = json.Unmarshal([]byte(secretString), &secrets); err != nil {
+	// 	return "", fmt.Errorf("unmarshal secrets: %w", err)
+	// }
 
 	checker := progress.WebProgressChecker{
 		URL: "http://brandonsanderson.com",
@@ -62,5 +73,16 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		response += fmt.Sprintf("\t%s\n", wip.ToString())
 	}
 
-	return response, nil
+	page, err := progress.CreateStatusPage(latestProgress)
+	if err != nil {
+		return "", fmt.Errorf("create status page: %w", err)
+	}
+
+	return httpResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"Content-Type": "text/html",
+		},
+		Body: string(page),
+	}, nil
 }
