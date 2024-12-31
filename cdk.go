@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslogs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awssecretsmanager"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -15,6 +16,7 @@ const (
 	MaxDurationSeconds = 60
 	CodePath           = "./getProgressLambda"
 	Handler            = "bootstrap"
+	SecretName         = "StormlightArchive"
 )
 
 type StormWatchCdkStackProps struct {
@@ -48,6 +50,9 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 	awscdk.NewCfnOutput(stack, jsii.String("progressCheckFunctionUrlOutput"), &awscdk.CfnOutputProps{
 		Value: progressCheckFunctionUrl.Url(),
 	})
+
+	secret := awssecretsmanager.Secret_FromSecretNameV2(stack, jsii.String(SecretName+"SecretID"), jsii.String(SecretName))
+	secret.GrantRead(progressCheckFunction, nil)
 
 	return stack
 }
