@@ -32,7 +32,7 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 	// for _, wip := range latestProgress {
 	// 	fmt.Println("\t", wip.ToString())
 	// }
-	fmt.Println("Hello, StormWatch logs!")
+	fmt.Println("Hello, StormWatch logs!!")
 
-	return "Hello, StormWatch caller!", nil
+	return "Hello, StormWatch caller!!", nil
 }
