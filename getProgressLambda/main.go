@@ -2,21 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
+	"time"
 
+	"github.com/Rhionin/SanderServer/history"
 	"github.com/Rhionin/SanderServer/progress"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-// const (
-// 	secretName = "StormlightArchive"
-// 	region     = "us-west-2"
-// )
-
-type secretStore struct {
-	GithubApiToken string `json:"GIT_API_KEY"`
-	GithubUsername string `json:"GIT_USERNAME"`
-}
+const (
+// secretName = "StormlightArchive"
+)
 
 type httpResponse struct {
 	StatusCode int               `json:"statusCode"`
@@ -29,11 +27,6 @@ func main() {
 }
 
 func GetProgress(ctx context.Context) (interface{}, error) {
-
-	// config, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("load default config: %w", err)
-	// }
 
 	// // Create Secrets Manager client
 	// svc := secretsmanager.NewFromConfig(config)
@@ -71,6 +64,40 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 	response := fmt.Sprintf("Latest progress from %s\n", checker.URL)
 	for _, wip := range latestProgress {
 		response += fmt.Sprintf("\t%s\n", wip.ToString())
+	}
+
+	latestProgressSimplified := []progress.WorkInProgressSimple{}
+	for _, p := range latestProgress {
+		latestProgressSimplified = append(latestProgressSimplified, progress.WorkInProgressSimple{
+			Title:    p.Title,
+			Progress: p.Progress,
+		})
+	}
+	historyClient, err := history.NewDynamoClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("new dynamo client: %w", err)
+	}
+	latestProgressFromHistory, err := historyClient.GetLatestProgressEntry(ctx)
+	if err != nil && !errors.Is(err, history.ErrEmptyHistory) {
+		return nil, fmt.Errorf("get latest progress entry from history: %w", err)
+	}
+
+	shouldAddHistoryEntry := errors.Is(err, history.ErrEmptyHistory) || !reflect.DeepEqual(latestProgressFromHistory.WorksInProgress, latestProgressSimplified)
+	if shouldAddHistoryEntry {
+		progressEntry := history.ProgressEntry{
+			Timestamp:       time.Now(),
+			WorksInProgress: latestProgressSimplified,
+		}
+		if errors.Is(err, history.ErrEmptyHistory) {
+			fmt.Println("History does not have any entries yet. Adding new entry with timestamp", progressEntry.Timestamp)
+		} else {
+			fmt.Println("Current progress is different from previous history entry. Adding new entry with timestamp", progressEntry.Timestamp)
+		}
+		if err = historyClient.AddNewProgressEntry(ctx, progressEntry); err != nil {
+			return nil, fmt.Errorf("add new history entry: %w", err)
+		}
+	} else {
+		fmt.Println("No progress change.")
 	}
 
 	page, err := progress.CreateStatusPage(latestProgress)

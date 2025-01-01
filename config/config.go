@@ -9,6 +9,11 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+const (
+	AWSRegion              = "us-west-2"
+	HistoryDynamoTableName = "storm-charts"
+)
+
 // Config is the config.
 type Config struct {
 	ProgressCheckIntervalExpression string `yaml:"progressCheckIntervalExpression"`

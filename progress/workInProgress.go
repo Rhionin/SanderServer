@@ -4,7 +4,13 @@ import (
 	"fmt"
 )
 
-// WorkInProgress represents each work and its progress
+// WorkInProgressSimple represents each work and its progress
+type WorkInProgressSimple struct {
+	Title    string `json:"title"`
+	Progress int    `json:"progress"`
+}
+
+// WorkInProgress represents each work and its progress, and a comparison against the previous progress
 type WorkInProgress struct {
 	Title        string `json:"title"`
 	Progress     int    `json:"progress"`
