@@ -106,7 +106,7 @@ func (m *Monitor) ScheduleProgressCheckJob(ctx context.Context, firebaseClient *
 								log.Println("Failed to send FCM update:", err)
 							}
 							if m.Config.SlackWebhookURL != "" {
-								if err := SendSlackUpdate(m.Config.SlackWebhookURL, wipsUpdate); err != nil {
+								if err := SendSlackUpdate(m.Config.SlackWebhookURL, wipsUpdate, ""); err != nil {
 									log.Println(err)
 								}
 							}

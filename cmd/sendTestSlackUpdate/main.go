@@ -1,21 +1,26 @@
 package main
 
 import (
-	"github.com/Rhionin/SanderServer/config"
+	"log"
+	"os"
+
 	"github.com/Rhionin/SanderServer/progress"
 )
 
-func main() {
-	cfg := config.GetConfig("./cmd/config.yaml")
+var (
+	slackWebhookURL = os.Getenv("SLACK_WEBHOOK_URL")
+)
 
+func main() {
 	wips := []progress.WorkInProgress{
 		{Title: "Book 1", Progress: 25},
 		{Title: "Book 2 has a very long name copyedit and stuff", Progress: 50, PrevProgress: 30},
 		{Title: "Book 3", Progress: 75},
 		{Title: "Book 4", Progress: 100, PrevProgress: 80},
 	}
+	channelOverride := "#cjc-slack-testing"
 
-	if err := progress.SendSlackUpdate(cfg.SlackWebhookURL, wips); err != nil {
-		panic(err)
+	if err := progress.SendSlackUpdate(slackWebhookURL, wips, channelOverride); err != nil {
+		log.Fatalf("Send slack update failed: %s", err)
 	}
 }
