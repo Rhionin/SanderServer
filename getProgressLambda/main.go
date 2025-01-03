@@ -61,11 +61,6 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		return "", fmt.Errorf("get progress: %w", err)
 	}
 
-	response := fmt.Sprintf("Latest progress from %s\n", checker.URL)
-	for _, wip := range latestProgress {
-		response += fmt.Sprintf("\t%s\n", wip.ToString())
-	}
-
 	latestProgressSimplified := []progress.WorkInProgressSimple{}
 	for _, p := range latestProgress {
 		latestProgressSimplified = append(latestProgressSimplified, progress.WorkInProgressSimple{
