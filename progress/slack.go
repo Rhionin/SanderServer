@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 )
 
 var (
 	ErrNoWebhookURL      = errors.New("no webhook url")
-	ErrNoWorksInProgress = errors.New("no works in progress")
+	ErrNoProgressUpdates = errors.New("no progress updates")
 )
 
 type slackAttachment struct {
@@ -34,23 +33,18 @@ type slackPost struct {
 }
 
 // SendSlackUpdate sends an update to slack
-func SendSlackUpdate(webhookURL string, wips []WorkInProgress, channelOverride string) error {
+func SendSlackUpdate(webhookURL string, progressUpdates []ProgressUpdate, channelOverride string) error {
 	if webhookURL == "" {
 		return ErrNoWebhookURL
 	}
-	if len(wips) == 0 {
-		return ErrNoWorksInProgress
+	if len(progressUpdates) == 0 {
+		return ErrNoProgressUpdates
 	}
 
 	fields := []slackField{}
-	for _, wip := range wips {
-		progressStr := fmt.Sprintf("%d%%", wip.Progress)
-		if wip.PrevProgress > 0 {
-			progressStr = fmt.Sprintf("%d%% => %d%%", wip.PrevProgress, wip.Progress)
-		}
-		value := fmt.Sprintf("%s (%s)", wip.Title, progressStr)
+	for _, update := range progressUpdates {
 		fields = append(fields, slackField{
-			Value: value,
+			Value: update.String(),
 		})
 	}
 

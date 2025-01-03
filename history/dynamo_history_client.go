@@ -31,13 +31,13 @@ type (
 
 	ProgressEntry struct {
 		Timestamp       time.Time
-		WorksInProgress []progress.WorkInProgressSimple
+		WorksInProgress []progress.WorkInProgress
 	}
 
 	progressDynamoEntry struct {
 		ID                string
 		TimestampUnixNano int64
-		WorksInProgress   []progress.WorkInProgressSimple
+		WorksInProgress   []progress.WorkInProgress
 	}
 )
 
@@ -53,6 +53,25 @@ func NewDynamoClient(ctx context.Context) (*DynamoClient, error) {
 }
 
 func (c *DynamoClient) GetLatestProgressEntry(ctx context.Context) (ProgressEntry, error) {
+	entries, err := c.GetLatestProgressEntries(ctx, 1)
+	if errors.Is(err, ErrEmptyHistory) {
+		return ProgressEntry{}, err
+	}
+	if err != nil {
+		return ProgressEntry{}, fmt.Errorf("get latest progress entries: %w", err)
+	}
+	if len(entries) != 1 {
+		return ProgressEntry{}, fmt.Errorf("expected 1 entry, got %d", len(entries))
+	}
+
+	return entries[0], nil
+}
+
+func (c *DynamoClient) GetLatestProgressEntries(ctx context.Context, entryCount int32) ([]ProgressEntry, error) {
+	if entryCount <= 0 {
+		return nil, fmt.Errorf("entryCount must be greater than 0")
+	}
+
 	latestProgressResult, err := c.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String(appconfig.HistoryDynamoTableName),
 		KeyConditionExpression: aws.String("ID = :id"),
@@ -60,30 +79,34 @@ func (c *DynamoClient) GetLatestProgressEntry(ctx context.Context) (ProgressEntr
 			":id": &types.AttributeValueMemberS{Value: latestEntryID},
 		},
 		ScanIndexForward: aws.Bool(false), // Get the latest (descending order)
-		Limit:            aws.Int32(1),
+		Limit:            aws.Int32(entryCount),
 	})
 	if err != nil {
-		return ProgressEntry{}, fmt.Errorf("get latest progress from DynamoDB: %w", err)
+		return nil, fmt.Errorf("get latest progress from DynamoDB: %w", err)
 	}
 
 	if len(latestProgressResult.Items) == 0 {
 		count, err := c.GetEntryCount(ctx)
 		if err != nil {
-			return ProgressEntry{}, fmt.Errorf("get entry count: %w", err)
+			return nil, fmt.Errorf("get entry count: %w", err)
 		}
 		if count > 0 {
-			return ProgressEntry{}, fmt.Errorf("could not find latest progress entry; zero results returned from dynamoDB despite %d records existing", count)
+			return nil, fmt.Errorf("could not find latest progress entries; zero results returned from dynamoDB despite %d records existing", count)
 		}
-		return ProgressEntry{}, ErrEmptyHistory
+		return nil, ErrEmptyHistory
 	}
 
-	var latestProgressFromHistory progressDynamoEntry
-	err = attributevalue.UnmarshalMap(latestProgressResult.Items[0], &latestProgressFromHistory)
-	if err != nil {
-		return ProgressEntry{}, fmt.Errorf("unmarshal DynamoDB item: %w", err)
+	progressEntries := make([]ProgressEntry, len(latestProgressResult.Items))
+	for i, item := range latestProgressResult.Items {
+		var progressFromHistory progressDynamoEntry
+		err = attributevalue.UnmarshalMap(item, &progressFromHistory)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal DynamoDB item: %w", err)
+		}
+		progressEntries[i] = progressFromHistory.toProgressEntry()
 	}
 
-	return latestProgressFromHistory.toProgressEntry(), nil
+	return progressEntries, nil
 }
 
 func (c *DynamoClient) AddNewProgressEntry(ctx context.Context, entry ProgressEntry) error {

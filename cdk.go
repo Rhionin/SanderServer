@@ -15,11 +15,8 @@ import (
 )
 
 const (
-	StackName          = "StormWatch-ProgressCheck"
-	FuncionName        = "ProgressCheck"
 	MemorySizeMB       = 128
 	MaxDurationSeconds = 20
-	CodePath           = "./getProgressLambda"
 	Handler            = "bootstrap"
 	SecretName         = "StormlightArchive"
 )
@@ -35,29 +32,21 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-	// Define the Lambda function resource
 	progressCheckFunction := awslambda.NewFunction(stack, jsii.String("ProgressCheck"), &awslambda.FunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
 		Architecture: awslambda.Architecture_ARM_64(),
 		MemorySize:   jsii.Number(MemorySizeMB),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String(CodePath), nil),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("./getProgressLambda"), nil),
 		LogRetention: awslogs.RetentionDays_ONE_DAY,
 		Handler:      jsii.String(Handler),
 	})
-
-	// Define the Lambda function URL resource
 	progressCheckFunctionUrl := progressCheckFunction.AddFunctionUrl(&awslambda.FunctionUrlOptions{
 		AuthType: awslambda.FunctionUrlAuthType_NONE,
 	})
-
-	// Define a CloudFormation output for your URL
 	awscdk.NewCfnOutput(stack, jsii.String("progressCheckFunctionUrlOutput"), &awscdk.CfnOutputProps{
 		Value: progressCheckFunctionUrl.Url(),
 	})
-
-	secret := awssecretsmanager.Secret_FromSecretNameV2(stack, jsii.String(SecretName+"SecretID"), jsii.String(SecretName))
-	secret.GrantRead(progressCheckFunction, nil)
 
 	awsevents.NewRule(stack, jsii.String("storm-check"), &awsevents.RuleProps{
 		Schedule: awsevents.Schedule_Expression(jsii.String("rate(5 minutes)")),
@@ -76,7 +65,7 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 		},
 		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
 	})
-	progressCheckFunction.Role().AttachInlinePolicy(awsiam.NewPolicy(stack, jsii.String("stormwatch-dynamo"), &awsiam.PolicyProps{
+	progressCheckFunction.Role().AttachInlinePolicy(awsiam.NewPolicy(stack, jsii.String("get-progress-dynamo"), &awsiam.PolicyProps{
 		Statements: &[]awsiam.PolicyStatement{
 			awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
 				Actions: jsii.Strings(
@@ -87,6 +76,35 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 			}),
 		},
 	}))
+
+	pushUpdatesFunction := awslambda.NewFunction(stack, jsii.String("PushUpdates"), &awslambda.FunctionProps{
+		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
+		Architecture: awslambda.Architecture_ARM_64(),
+		MemorySize:   jsii.Number(MemorySizeMB),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("./pushUpdatesLambda"), nil),
+		LogRetention: awslogs.RetentionDays_ONE_DAY,
+		Handler:      jsii.String(Handler),
+	})
+	pushUpdatesFunctionUrl := pushUpdatesFunction.AddFunctionUrl(&awslambda.FunctionUrlOptions{
+		AuthType: awslambda.FunctionUrlAuthType_NONE,
+	})
+	awscdk.NewCfnOutput(stack, jsii.String("pushUpdatesFunctionUrlOutput"), &awscdk.CfnOutputProps{
+		Value: pushUpdatesFunctionUrl.Url(),
+	})
+	pushUpdatesFunction.Role().AttachInlinePolicy(awsiam.NewPolicy(stack, jsii.String("push-updates-dynamo"), &awsiam.PolicyProps{
+		Statements: &[]awsiam.PolicyStatement{
+			awsiam.NewPolicyStatement(&awsiam.PolicyStatementProps{
+				Actions: jsii.Strings(
+					"dynamodb:Query",
+				),
+				Resources: jsii.Strings(*history.TableArn()),
+			}),
+		},
+	}))
+
+	secret := awssecretsmanager.Secret_FromSecretNameV2(stack, jsii.String(SecretName+"SecretID"), jsii.String(SecretName))
+	secret.GrantRead(pushUpdatesFunction, nil)
 
 	return stack
 }

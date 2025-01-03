@@ -12,10 +12,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-const (
-// secretName = "StormlightArchive"
-)
-
 type httpResponse struct {
 	StatusCode int               `json:"statusCode"`
 	Headers    map[string]string `json:"headers"`
@@ -27,31 +23,6 @@ func main() {
 }
 
 func GetProgress(ctx context.Context) (interface{}, error) {
-
-	// // Create Secrets Manager client
-	// svc := secretsmanager.NewFromConfig(config)
-
-	// input := &secretsmanager.GetSecretValueInput{
-	// 	SecretId:     aws.String(secretName),
-	// 	VersionStage: aws.String("AWSCURRENT"), // VersionStage defaults to AWSCURRENT if unspecified
-	// }
-
-	// result, err := svc.GetSecretValue(ctx, input)
-	// if err != nil {
-	// 	// For a list of exceptions thrown, see
-	// 	// https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-	// 	return nil, fmt.Errorf("get secrets: %w", err)
-	// }
-
-	// // Decrypts secret using the associated KMS key.
-	// // The value is this string is the json-encoded object found at https://us-west-2.console.aws.amazon.com/secretsmanager/secret?name=StormlightArchive&region=us-west-2
-	// var secretString string = *result.SecretString
-
-	// var secrets secretStore
-	// if err = json.Unmarshal([]byte(secretString), &secrets); err != nil {
-	// 	return "", fmt.Errorf("unmarshal secrets: %w", err)
-	// }
-
 	checker := progress.WebProgressChecker{
 		URL: "http://brandonsanderson.com",
 	}
@@ -61,9 +32,9 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		return "", fmt.Errorf("get progress: %w", err)
 	}
 
-	latestProgressSimplified := []progress.WorkInProgressSimple{}
+	latestProgressSimplified := []progress.WorkInProgress{}
 	for _, p := range latestProgress {
-		latestProgressSimplified = append(latestProgressSimplified, progress.WorkInProgressSimple{
+		latestProgressSimplified = append(latestProgressSimplified, progress.WorkInProgress{
 			Title:    p.Title,
 			Progress: p.Progress,
 		})
