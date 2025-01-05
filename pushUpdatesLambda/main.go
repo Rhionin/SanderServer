@@ -8,12 +8,15 @@ import (
 
 	appconfig "github.com/Rhionin/SanderServer/config"
 	"github.com/Rhionin/SanderServer/history"
-
 	"github.com/Rhionin/SanderServer/progress"
+
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
 const (
@@ -28,7 +31,7 @@ func main() {
 	lambda.Start(PushUpdates)
 }
 
-func PushUpdates(ctx context.Context) error {
+func PushUpdates(ctx context.Context, event DynamoDBEvent) error {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(appconfig.AWSRegion))
 	if err != nil {
 		return fmt.Errorf("load default config: %w", err)
@@ -62,32 +65,66 @@ func PushUpdates(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("new dynamo client: %w", err)
 	}
-	progressEntries, err := historyClient.GetLatestProgressEntries(ctx, 2)
+
+	if len(event.Records) != 1 {
+		return fmt.Errorf("expected 1 record in event trigger, but got %d", len(event.Records))
+	}
+
+	latestUpdate := event.Records[0]
+	if latestUpdate.EventName != "INSERT" {
+		fmt.Printf("Not processing %q operation\n", latestUpdate.EventName)
+		return nil
+	}
+	var latestHistoryEntry history.ProgressDynamoEntry
+	if err = dynamodbattribute.UnmarshalMap(latestUpdate.Change.NewImage, &latestHistoryEntry); err != nil {
+		return fmt.Errorf("dynamodbattribute.UnmarshalMap for event record: %w", err)
+	}
+
+	penultimateUpdate, err := historyClient.GetLatestProgressEntryBeforeID(ctx, latestHistoryEntry)
 	if err != nil && !errors.Is(err, history.ErrEmptyHistory) {
-		return fmt.Errorf("get latest 2 progress entries: %w", err)
-	}
-
-	var updates []progress.ProgressUpdate
-	switch len(progressEntries) {
-	case 0:
+		return fmt.Errorf("get penultimate progress update entry: %w", err)
+	} else if errors.Is(err, history.ErrEmptyHistory) {
 		return history.ErrEmptyHistory
-	case 1:
-		for _, entry := range progressEntries[0].WorksInProgress {
-			updates = append(updates, progress.ProgressUpdate{
-				Title:    entry.Title,
-				Progress: entry.Progress,
-			})
-		}
-	case 2:
-		updates = progress.GetProgressUpdate(progressEntries[0].WorksInProgress, progressEntries[1].WorksInProgress)
-	default:
-		return fmt.Errorf("expected no more than 2 progress entries, got %d", len(progressEntries))
+	} else if errors.Is(err, history.ErrNoEntryBeforeTarget) {
+		fmt.Println("This appears to be the first history entry. No updates to push.")
+		return nil
 	}
+	updates := progress.GetProgressUpdate(latestHistoryEntry.WorksInProgress, penultimateUpdate.WorksInProgress)
 
-	channelOverride := "#cjc-slack-testing"
+	channelOverride := "" // Post to the default channel
 	if err := progress.SendSlackUpdate(secrets.SlackWebhookURL, updates, channelOverride); err != nil {
 		return fmt.Errorf("send slack update: %w", err)
 	}
 
 	return nil
+}
+
+// Unmarshal the event in a way where we can actually parse the event records using dynamodbattribute.UnmarshalMap.
+// See https://stackoverflow.com/a/50164289
+type DynamoDBEvent struct {
+	Records []DynamoDBEventRecord `json:"Records"`
+}
+
+type DynamoDBEventRecord struct {
+	AWSRegion      string                       `json:"awsRegion"`
+	Change         DynamoDBStreamRecord         `json:"dynamodb"`
+	EventID        string                       `json:"eventID"`
+	EventName      string                       `json:"eventName"`
+	EventSource    string                       `json:"eventSource"`
+	EventVersion   string                       `json:"eventVersion"`
+	EventSourceArn string                       `json:"eventSourceARN"`
+	UserIdentity   *events.DynamoDBUserIdentity `json:"userIdentity,omitempty"`
+}
+
+type DynamoDBStreamRecord struct {
+	ApproximateCreationDateTime events.SecondsEpochTime `json:"ApproximateCreationDateTime,omitempty"`
+	// changed to map[string]*dynamodb.AttributeValue
+	Keys map[string]*dynamodb.AttributeValue `json:"Keys,omitempty"`
+	// changed to map[string]*dynamodb.AttributeValue
+	NewImage map[string]*dynamodb.AttributeValue `json:"NewImage,omitempty"`
+	// changed to map[string]*dynamodb.AttributeValue
+	OldImage       map[string]*dynamodb.AttributeValue `json:"OldImage,omitempty"`
+	SequenceNumber string                              `json:"SequenceNumber"`
+	SizeBytes      int64                               `json:"SizeBytes"`
+	StreamViewType string                              `json:"StreamViewType"`
 }

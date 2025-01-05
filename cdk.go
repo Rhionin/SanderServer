@@ -63,6 +63,7 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 			Name: jsii.String("TimestampUnixNano"),
 			Type: awsdynamodb.AttributeType_NUMBER,
 		},
+		DynamoStream:  awsdynamodb.StreamViewType_NEW_IMAGE,
 		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
 	})
 	progressCheckFunction.Role().AttachInlinePolicy(awsiam.NewPolicy(stack, jsii.String("get-progress-dynamo"), &awsiam.PolicyProps{
@@ -102,6 +103,17 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 			}),
 		},
 	}))
+	history.GrantStreamRead(pushUpdatesFunction)
+
+	pushUpdatesFunction.AddEventSourceMapping(jsii.String("push-updates-dynamo-trigger"), &awslambda.EventSourceMappingOptions{
+		BatchSize:               jsii.Number(1),
+		StartingPosition:        awslambda.StartingPosition_LATEST,
+		EventSourceArn:          history.TableStreamArn(),
+		BisectBatchOnError:      jsii.Bool(false),
+		RetryAttempts:           jsii.Number(0),
+		ParallelizationFactor:   jsii.Number(1),
+		ReportBatchItemFailures: jsii.Bool(true),
+	})
 
 	secret := awssecretsmanager.Secret_FromSecretNameV2(stack, jsii.String(SecretName+"SecretID"), jsii.String(SecretName))
 	secret.GrantRead(pushUpdatesFunction, nil)
