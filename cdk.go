@@ -83,7 +83,7 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 		Architecture: awslambda.Architecture_ARM_64(),
 		MemorySize:   jsii.Number(MemorySizeMB),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String("./pushUpdatesLambda"), nil),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("./cmd/pushUpdatesLambda"), nil),
 		LogRetention: awslogs.RetentionDays_ONE_DAY,
 		Handler:      jsii.String(Handler),
 	})

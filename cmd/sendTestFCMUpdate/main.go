@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/Rhionin/SanderServer/firebase"
-	"github.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/internal/progress"
 )
 
 func main() {

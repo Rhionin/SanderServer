@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/internal/progress"
 )
 
 var (

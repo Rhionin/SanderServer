@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Rhionin/SanderServer/history"
-	"github.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/internal/history"
+	"github.com/Rhionin/SanderServer/internal/progress"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
@@ -39,7 +39,7 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 			Progress: p.Progress,
 		})
 	}
-	historyClient, err := history.NewDynamoClient(ctx)
+	historyClient, err := history.NewDynamoClientFromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("new dynamo client: %w", err)
 	}

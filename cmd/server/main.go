@@ -12,7 +12,7 @@ import (
 
 	"github.com/Rhionin/SanderServer/config"
 	"github.com/Rhionin/SanderServer/firebase"
-	"github.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/internal/progress"
 )
 
 var (

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	appconfig "github.com/Rhionin/SanderServer/config"
+	"github.com/Rhionin/SanderServer/internal/progress"
 
-	"github.com/Rhionin/SanderServer/progress"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -42,15 +42,18 @@ type (
 	}
 )
 
-func NewDynamoClient(ctx context.Context) (*DynamoClient, error) {
+func NewDynamoClientFromContext(ctx context.Context) (*DynamoClient, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(appconfig.AWSRegion))
 	if err != nil {
 		return nil, fmt.Errorf("load default config: %w", err)
 	}
 
-	c := dynamodb.NewFromConfig(cfg)
+	dynamoClient := dynamodb.NewFromConfig(cfg)
+	return NewDynamoClient(dynamoClient)
+}
 
-	return &DynamoClient{client: c}, nil
+func NewDynamoClient(dbClient *dynamodb.Client) (*DynamoClient, error) {
+	return &DynamoClient{client: dbClient}, nil
 }
 
 func (c *DynamoClient) GetLatestProgressEntry(ctx context.Context) (ProgressEntry, error) {
