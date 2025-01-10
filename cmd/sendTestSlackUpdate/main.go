@@ -1,21 +1,30 @@
 package main
 
 import (
-	"github.com/Rhionin/SanderServer/config"
-	"github.com/Rhionin/SanderServer/progress"
+	"context"
+	"log"
+	"os"
+
+	"github.com/Rhionin/SanderServer/internal/progress"
+	"github.com/Rhionin/SanderServer/internal/slack"
+)
+
+var (
+	slackWebhookURL = os.Getenv("SLACK_WEBHOOK_URL")
 )
 
 func main() {
-	cfg := config.GetConfig("./cmd/config.yaml")
+	channelOverride := "#cjc-slack-testing"
+	updateClient := slack.NewUpdateClient(slackWebhookURL, channelOverride)
 
-	wips := []progress.WorkInProgress{
+	updates := []progress.ProgressUpdate{
 		{Title: "Book 1", Progress: 25},
 		{Title: "Book 2 has a very long name copyedit and stuff", Progress: 50, PrevProgress: 30},
 		{Title: "Book 3", Progress: 75},
 		{Title: "Book 4", Progress: 100, PrevProgress: 80},
 	}
 
-	if err := progress.SendSlackUpdate(cfg.SlackWebhookURL, wips); err != nil {
-		panic(err)
+	if err := updateClient.SendUpdate(context.Background(), updates); err != nil {
+		log.Fatalf("Send slack update failed: %s", err)
 	}
 }

@@ -6,12 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Rhionin/SanderServer/progress"
-)
-
-var (
-	username = os.Getenv("GIT_USERNAME")
-	apiKey   = os.Getenv("GIT_API_KEY")
+	"github.com/Rhionin/SanderServer/internal/progress"
 )
 
 func main() {
@@ -26,7 +21,7 @@ func main() {
 
 	fmt.Println("Latest progress from " + checker.URL)
 	for _, wip := range latestProgress {
-		fmt.Println("\t", wip.ToString())
+		fmt.Println("\t", wip.String())
 	}
 
 	var page []byte
@@ -41,7 +36,7 @@ func main() {
 	}
 
 	// create and open the status-page.html file to write into it
-	filename := progress.StatusPageFilename
+	filename := "status-page.html"
 	file, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file:", err)
@@ -67,12 +62,4 @@ func main() {
 
 	// print the absolute path of the written file
 	fmt.Println("Status page created successfully at:", absPath)
-
-	if username != "" && apiKey != "" {
-		fmt.Println("Publishing status page to github...")
-		if err = progress.PublishStatusPage(username, apiKey, page); err != nil {
-			fmt.Println("Error publishing status page:", err)
-			os.Exit(1)
-		}
-	}
 }

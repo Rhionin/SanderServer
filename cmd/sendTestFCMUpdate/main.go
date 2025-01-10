@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Rhionin/SanderServer/firebase"
-	"github.com/Rhionin/SanderServer/progress"
+	"github.com/Rhionin/SanderServer/internal/firebase"
+	"github.com/Rhionin/SanderServer/internal/progress"
 )
 
 func main() {
@@ -27,14 +27,14 @@ func main() {
 	if err != nil {
 		someConstant = 0
 	}
-	wips := []progress.WorkInProgress{
+	wips := []progress.ProgressUpdate{
 		{Title: "Book 1", Progress: 25},
 		{Title: "Book 2 has a very long name copyedit and stuff", Progress: 50 + someConstant, PrevProgress: 30},
 		{Title: "Book 3", Progress: 75},
 		{Title: "Book 4", Progress: 100, PrevProgress: 80},
 	}
 
-	response, err := progress.SendFCMUpdate(ctx, firebaseClient, wips, "flutter_devprogress")
+	response, err := firebase.SendFCMUpdate(ctx, firebaseClient, wips, "flutter_devprogress")
 	if err != nil {
 		fmt.Printf("Error sending flutter FCM update: %s\n", err)
 	}
