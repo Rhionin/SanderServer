@@ -21,7 +21,7 @@ func main() {
 
 	fmt.Println("Latest progress from " + checker.URL)
 	for _, wip := range latestProgress {
-		fmt.Println("\t", wip.ToString())
+		fmt.Println("\t", wip.String())
 	}
 
 	var page []byte
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// create and open the status-page.html file to write into it
-	filename := progress.StatusPageFilename
+	filename := "status-page.html"
 	file, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Error creating file:", err)

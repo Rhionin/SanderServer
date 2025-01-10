@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	appconfig "github.com/Rhionin/SanderServer/config"
+	appconfig "github.com/Rhionin/SanderServer/internal/config"
 	"github.com/Rhionin/SanderServer/internal/history"
 	"github.com/Rhionin/SanderServer/internal/progress"
 	"github.com/Rhionin/SanderServer/internal/slack"

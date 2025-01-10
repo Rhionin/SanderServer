@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Rhionin/SanderServer/config"
+	"github.com/Rhionin/SanderServer/internal/config"
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsevents"

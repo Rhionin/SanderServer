@@ -1,4 +1,0 @@
-progressCheckIntervalExpression: "5m"
-logFile: "./SanderServer.log"
-port: ":8000"
-progresstopic: "devprogress"

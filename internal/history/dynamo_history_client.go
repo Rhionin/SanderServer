@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	appconfig "github.com/Rhionin/SanderServer/config"
+	appconfig "github.com/Rhionin/SanderServer/internal/config"
 	"github.com/Rhionin/SanderServer/internal/progress"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
