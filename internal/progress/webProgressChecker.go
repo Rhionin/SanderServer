@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,6 +68,11 @@ func parseProgressFromHTML(html string) ([]WorkInProgress, error) {
 		}
 
 		wips = append(wips, WorkInProgress{Title: title, Progress: progress})
+	}
+
+	if len(wips) == 0 {
+		fmt.Println("No progress entries found from HTML:\n", html)
+		return nil, errors.New("no progress entries found")
 	}
 
 	return wips, nil
