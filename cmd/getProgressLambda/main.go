@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -32,13 +33,6 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		return "", fmt.Errorf("get progress: %w", err)
 	}
 
-	latestProgressSimplified := []progress.WorkInProgress{}
-	for _, p := range latestProgress {
-		latestProgressSimplified = append(latestProgressSimplified, progress.WorkInProgress{
-			Title:    p.Title,
-			Progress: p.Progress,
-		})
-	}
 	historyClient, err := history.NewDynamoClientFromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("new dynamo client: %w", err)
@@ -48,16 +42,21 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		return nil, fmt.Errorf("get latest progress entry from history: %w", err)
 	}
 
-	shouldAddHistoryEntry := errors.Is(err, history.ErrEmptyHistory) || !reflect.DeepEqual(latestProgressFromHistory.WorksInProgress, latestProgressSimplified)
+	shouldAddHistoryEntry := errors.Is(err, history.ErrEmptyHistory) || !reflect.DeepEqual(latestProgressFromHistory.WorksInProgress, latestProgress)
 	if shouldAddHistoryEntry {
 		progressEntry := history.ProgressEntry{
 			Timestamp:       time.Now(),
-			WorksInProgress: latestProgressSimplified,
+			WorksInProgress: latestProgress,
 		}
 		if errors.Is(err, history.ErrEmptyHistory) {
 			fmt.Println("History does not have any entries yet. Adding new entry with timestamp", progressEntry.Timestamp)
 		} else {
 			fmt.Println("Current progress is different from previous history entry. Adding new entry with timestamp", progressEntry.Timestamp)
+			latestBytes, _ := json.Marshal(latestProgress)
+			fmt.Println("Current progress:", string(latestBytes))
+
+			previousBytes, _ := json.Marshal(latestProgressFromHistory)
+			fmt.Println("Previous progress:", string(previousBytes))
 		}
 		if err = historyClient.AddNewProgressEntry(ctx, progressEntry); err != nil {
 			return nil, fmt.Errorf("add new history entry: %w", err)

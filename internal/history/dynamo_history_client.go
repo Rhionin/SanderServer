@@ -91,6 +91,9 @@ func (c *DynamoClient) GetLatestProgressEntry(ctx context.Context) (ProgressEntr
 }
 
 func (c *DynamoClient) AddNewProgressEntry(ctx context.Context, entry ProgressEntry) error {
+	if len(entry.WorksInProgress) == 0 {
+		return fmt.Errorf("cannot add progress entry with no works in progress")
+	}
 	dynamoItem, err := attributevalue.MarshalMap(entry.toDynamoProgressEntry())
 	if err != nil {
 		return fmt.Errorf("marshal progress dymamo entry: %w", err)
