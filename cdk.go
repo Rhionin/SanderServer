@@ -32,13 +32,17 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
+	progressCheckLogGroup := awslogs.NewLogGroup(stack, jsii.String("ProgressCheckLogs"), &awslogs.LogGroupProps{
+		Retention:     awslogs.RetentionDays_ONE_DAY,
+		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+	})
 	progressCheckFunction := awslambda.NewFunction(stack, jsii.String("ProgressCheck"), &awslambda.FunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
 		Architecture: awslambda.Architecture_ARM_64(),
 		MemorySize:   jsii.Number(MemorySizeMB),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
 		Code:         awslambda.AssetCode_FromAsset(jsii.String("./cmd/getProgressLambda"), nil),
-		LogRetention: awslogs.RetentionDays_ONE_DAY,
+		LogGroup:     progressCheckLogGroup,
 		Handler:      jsii.String(Handler),
 	})
 	progressCheckFunctionUrl := progressCheckFunction.AddFunctionUrl(&awslambda.FunctionUrlOptions{
@@ -78,13 +82,17 @@ func NewCdkStack(scope constructs.Construct, id string, props *StormWatchCdkStac
 		},
 	}))
 
+	pushUpdatesLogGroup := awslogs.NewLogGroup(stack, jsii.String("PushUpdatesLogs"), &awslogs.LogGroupProps{
+		Retention:     awslogs.RetentionDays_ONE_DAY,
+		RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+	})
 	pushUpdatesFunction := awslambda.NewFunction(stack, jsii.String("PushUpdates"), &awslambda.FunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2023(),
 		Architecture: awslambda.Architecture_ARM_64(),
 		MemorySize:   jsii.Number(MemorySizeMB),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(MaxDurationSeconds)),
 		Code:         awslambda.AssetCode_FromAsset(jsii.String("./cmd/pushUpdatesLambda"), nil),
-		LogRetention: awslogs.RetentionDays_ONE_DAY,
+		LogGroup:     pushUpdatesLogGroup,
 		Handler:      jsii.String(Handler),
 	})
 	pushUpdatesFunctionUrl := pushUpdatesFunction.AddFunctionUrl(&awslambda.FunctionUrlOptions{
