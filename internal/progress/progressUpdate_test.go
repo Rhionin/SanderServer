@@ -143,3 +143,110 @@ func TestGetProgressUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestClampToForwardProgress(t *testing.T) {
+	testCases := []struct {
+		name     string
+		stored   []WorkInProgress
+		latest   []WorkInProgress
+		expected []WorkInProgress
+	}{
+		{
+			name: "Backward dip clamped",
+			stored: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+			latest: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 25},
+			},
+			expected: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+		},
+		{
+			name: "Genuine increase passes",
+			stored: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+			latest: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 40},
+			},
+			expected: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 40},
+			},
+		},
+		{
+			name: "Equal value unchanged",
+			stored: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+			latest: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+			expected: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+		},
+		{
+			name: "New title passes through unchanged",
+			stored: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+			},
+			latest: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+				{Title: "Ghostbloods Book 1", Progress: 10},
+			},
+			expected: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+				{Title: "Ghostbloods Book 1", Progress: 10},
+			},
+		},
+		{
+			name: "Title removed from latest drops from result",
+			stored: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+				{Title: "Ghostbloods Book 1", Progress: 100},
+			},
+			latest: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+			},
+			expected: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+			},
+		},
+		{
+			name:   "Empty stored returns latest as-is",
+			stored: []WorkInProgress{},
+			latest: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 25},
+			},
+			expected: []WorkInProgress{
+				{Title: "Riftwake Book 3", Progress: 25},
+			},
+		},
+		{
+			name: "Mixed up and down in same slice",
+			stored: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 85},
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+			latest: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 90},
+				{Title: "Riftwake Book 3", Progress: 25},
+			},
+			expected: []WorkInProgress{
+				{Title: "Mistborn Screenplay", Progress: 90},
+				{Title: "Riftwake Book 3", Progress: 33},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := ClampToForwardProgress(tc.stored, tc.latest)
+			if !reflect.DeepEqual(actual, tc.expected) {
+				t.Errorf("Expected: %v, Actual: %v", tc.expected, actual)
+			}
+		})
+	}
+}

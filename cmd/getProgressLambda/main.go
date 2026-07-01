@@ -42,18 +42,21 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		return nil, fmt.Errorf("get latest progress entry from history: %w", err)
 	}
 
-	shouldAddHistoryEntry := errors.Is(err, history.ErrEmptyHistory) || !reflect.DeepEqual(latestProgressFromHistory.WorksInProgress, latestProgress)
+	storedProgress := latestProgressFromHistory.WorksInProgress
+	mergedProgress := progress.ClampToForwardProgress(storedProgress, latestProgress)
+
+	shouldAddHistoryEntry := errors.Is(err, history.ErrEmptyHistory) || !reflect.DeepEqual(storedProgress, mergedProgress)
 	if shouldAddHistoryEntry {
 		progressEntry := history.ProgressEntry{
 			Timestamp:       time.Now(),
-			WorksInProgress: latestProgress,
+			WorksInProgress: mergedProgress,
 		}
 		if errors.Is(err, history.ErrEmptyHistory) {
 			fmt.Println("History does not have any entries yet. Adding new entry with timestamp", progressEntry.Timestamp)
 		} else {
 			fmt.Println("Current progress is different from previous history entry. Adding new entry with timestamp", progressEntry.Timestamp)
-			latestBytes, _ := json.Marshal(latestProgress)
-			fmt.Println("Current progress:", string(latestBytes))
+			mergedBytes, _ := json.Marshal(mergedProgress)
+			fmt.Println("Merged progress:", string(mergedBytes))
 
 			previousBytes, _ := json.Marshal(latestProgressFromHistory)
 			fmt.Println("Previous progress:", string(previousBytes))
@@ -65,7 +68,7 @@ func GetProgress(ctx context.Context) (interface{}, error) {
 		fmt.Println("No progress change.")
 	}
 
-	page, err := progress.CreateStatusPage(latestProgress)
+	page, err := progress.CreateStatusPage(mergedProgress)
 	if err != nil {
 		return "", fmt.Errorf("create status page: %w", err)
 	}
