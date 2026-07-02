@@ -1,33 +1,36 @@
 package storminglambdas
 
 import (
-	"encoding/json"
 	"fmt"
 
+	"github.com/Rhionin/SanderServer/internal/history"
+	"github.com/Rhionin/SanderServer/internal/progress"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-// UnmarshalStreamImage converts events.DynamoDBAttributeValue to struct
-// See https://stackoverflow.com/a/50017398
-func UnmarshalStreamImage[V any](attribute map[string]events.DynamoDBAttributeValue, out *V) error {
-	dbAttrMap := make(map[string]*dynamodb.AttributeValue)
-	for k, v := range attribute {
-
-		var dbAttr dynamodb.AttributeValue
-
-		bytes, marshalErr := v.MarshalJSON()
-		if marshalErr != nil {
-			return fmt.Errorf("marshal event key %q: %s", k, marshalErr)
-		}
-
-		if err := json.Unmarshal(bytes, &dbAttr); err != nil {
-			return fmt.Errorf("unmarshal event key %q: %s", k, err)
-		}
-		dbAttrMap[k] = &dbAttr
+// UnmarshalStreamImage reads a DynamoDB stream NewImage into a ProgressDynamoEntry.
+func UnmarshalStreamImage(image map[string]events.DynamoDBAttributeValue, out *history.ProgressDynamoEntry) error {
+	timestamp, err := image["TimestampUnixNano"].Integer()
+	if err != nil {
+		return fmt.Errorf("parse TimestampUnixNano: %w", err)
 	}
 
-	return dynamodbattribute.UnmarshalMap(dbAttrMap, out)
+	works := image["WorksInProgress"].List()
+	worksInProgress := make([]progress.WorkInProgress, len(works))
+	for i, work := range works {
+		fields := work.Map()
+		p, err := fields["Progress"].Integer()
+		if err != nil {
+			return fmt.Errorf("parse WorksInProgress[%d].Progress: %w", i, err)
+		}
+		worksInProgress[i] = progress.WorkInProgress{
+			Title:    fields["Title"].String(),
+			Progress: int(p),
+		}
+	}
 
+	out.ID = image["ID"].String()
+	out.TimestampUnixNano = timestamp
+	out.WorksInProgress = worksInProgress
+	return nil
 }
